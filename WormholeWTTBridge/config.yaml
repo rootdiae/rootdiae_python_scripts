@@ -30,4 +30,10 @@ vaa_alert_timeout_seconds: 600    # VAA告警超时（秒），超过该时间�
 token_bridge_contract_src: "0xYourSrcTokenBridge"    # 源链Token Bridge合约地址
 token_bridge_contract_dst: "0xYourDstTokenBridge"   # 目标链Token Bridge合约地址
 
-log_level: "INFO"          
+log_level: "INFO"
+
+# 可选：transferTokensWithPayload模式下的payload（16进制字符串，例："0x1234abcd"）
+payload: ""
+
+# redeem_only模式下需要指定源链跨链交易哈希
+src_tx_hash: ""

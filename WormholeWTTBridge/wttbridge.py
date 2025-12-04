@@ -9,7 +9,6 @@ from dotenv import load_dotenv
 
 # ========== ABI 常量 ==========
 TOKENBRIDGE_ABI = [
-    # 只保留核心功能
     {
         "inputs": [
             {"internalType": "address", "name": "token", "type": "address"},
@@ -128,6 +127,7 @@ def init_web3(rpc_url):
     if not w3.is_connected():
         print("RPC连接失败，请检查RPC地址")
         return None
+    return w3
 
 # ========== 主流程 ==========
 def main():
@@ -151,6 +151,8 @@ def main():
     vaa_alert_timeout = int(config.get("vaa_alert_timeout_seconds", 600))
     token_bridge_contract_src = config["token_bridge_contract_src"]
     token_bridge_contract_dst = config["token_bridge_contract_dst"]
+    payload_hex = config.get("payload", "")
+    src_tx_hash = config.get("src_tx_hash", "")
 
     # 2. 初始化web3
     w3_src = init_web3(src["rpc"])
@@ -199,13 +201,18 @@ def main():
                 nonce
             )
         else:
+            # 支持payload从配置文件输入
+            if payload_hex.startswith("0x"):
+                payload_bytes = bytes.fromhex(payload_hex[2:])
+            else:
+                payload_bytes = b''
             func = tb.functions.transferTokensWithPayload(
                 checksum(token["address_on_src"]),
                 min_unit_amount,
                 wormhole_dst_chain_id,
                 recipient_bytes32,
                 nonce,
-                b''  # payload
+                payload_bytes
             )
         tx = func.build_transaction({
             "from": account.address,
@@ -221,7 +228,10 @@ def main():
         logger.info(f"跨链交易已上链: {receipt.transactionHash.hex()}")
         src_tx_hash = tx_hash.hex()
     else:
-        src_tx_hash = config["src_tx_hash"]
+        # redeem_only模式下，src_tx_hash必须从配置文件读取
+        if not src_tx_hash:
+            logger.error("redeem_only模式下，必须在配置文件中提供src_tx_hash")
+            return
 
     # 6. 轮询 WormholeScan 获取 VAA
     logger.info("开始轮询 WormholeScan 获取 VAA...")
