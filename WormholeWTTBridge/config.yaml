@@ -1,34 +1,34 @@
-mode: full_send                  # full_send（发起跨链-查询vaa-目标链执行） | redeem_only（查询vaa-目标链执行）
+mode: redeem_only                  # full_send（发起跨链-查询vaa-目标链执行） | redeem_only（查询vaa-目标链执行）
 wtt_method: transferTokens       # transferTokens | transferTokensWithPayload
 
 src:                              # 源链配置
-  rpc: "https://mainnet.infura.io/v3/xxx"
+  rpc: "https://ethereum-sepolia-rpc.publicnode.com"
   name: "ethereum"
   chain_evm_id: 1
 
 dst:                            # 目标链配置      
-  rpc: "https://bsc-dataseed.binance.org/"
-  name: "bsc"
-  chain_evm_id: 56
+  rpc: "https://arbitrum-sepolia.drpc.org"
+  name: "arbitrum"
+  chain_evm_id: 42161
 
 token:                     # 代币配置 
-  address_on_src: "0xYourTokenAddress"        # 源链代币合约地址
+  address_on_src: "0x7A69434037601DBF509C9a8eaF32d24C3d1a3524"        # 源链代币合约地址
   decimals: 18
-  symbol: "USDT"
-  approve_required: true          # 是否需要先调用approve，授权数量为代币跨链数量
+  symbol: "TALK"
+  approve_required: true          # 是否需要先调用approve，true表示需要授权，授权数量为代币跨链数量，false表示不需要授权
 
-recipient_on_dst: "0xRecipientAddress"       # 目标链接收地址（bytes32格式）
-amount: "1.23"                   # 跨链代币数量，十进制字符串
+recipient_on_dst: "0x9CAEE92287CAD179541bc7C44874b485b9AaC88b"       # 目标链接收地址（bytes32格式）
+amount: "1"                   # 跨链代币数量，十进制字符串
 
 private_key_env: "PRIVATE_KEY"   # .env文件中的变量名
 
-wormholescan_api_base: "https://api.wormholescan.io/api/v1"           # wormholescan API
+wormholescan_api_base: "https://api.testnet.wormholescan.io" #正式网"https://api.wormholescan.io/api/v1"    # wormholescan API
 vaa_poll_interval_seconds: 0.1        # VAA轮询间隔（秒）   
 vaa_alert_interval_seconds: 60    # VAA告警间隔（秒）
 vaa_alert_timeout_seconds: 600    # VAA告警超时（秒），超过该时间未获取到VAA则在日志里打印警告       
 
-token_bridge_contract_src: "0xYourSrcTokenBridge"    # 源链Token Bridge合约地址
-token_bridge_contract_dst: "0xYourDstTokenBridge"   # 目标链Token Bridge合约地址
+token_bridge_contract_src: "0xDB5492265f6038831E89f495670FF909aDe94bd9"    # 源链Token Bridge合约地址
+token_bridge_contract_dst: "0xC7A204bDBFe983FCD8d8E61D02b475D4073fF97e"   # 目标链Token Bridge合约地址
 
 log_level: "INFO"
 
@@ -36,4 +36,4 @@ log_level: "INFO"
 payload: ""
 
 # redeem_only模式下需要指定源链跨链交易哈希
-src_tx_hash: ""
+src_tx_hash: "0xe907dceae1a952f9a1b343f35778db15d3983e2c09c937b2f5949ecb6bf582f5"

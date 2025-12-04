@@ -87,7 +87,7 @@ WORMHOLE_CHAIN_ID_MAP = {
 
 # ========== 配置与日志 ==========
 def load_config():
-    with open("config.yaml", "r") as f:
+    with open("WormholeWTTBridge/config.yaml", "r") as f:
         return yaml.safe_load(f)
 
 def setup_logger(log_level="INFO"):
@@ -105,7 +105,7 @@ def setup_logger(log_level="INFO"):
 # ========== 工具 ==========
 def to_bytes32(address: str) -> bytes:
     # 地址转bytes32
-    addr = Web3.toBytes(hexstr=address)
+    addr = Web3.to_bytes(hexstr=address)
     return addr.rjust(32, b'\0')
 
 def amount_to_min_unit(amount_str, decimals):
@@ -115,7 +115,7 @@ def amount_to_min_unit(amount_str, decimals):
 
 def checksum(address):
     # 地址转checksum格式
-    return Web3.toChecksumAddress(address)
+    return Web3.to_checksum_address(address)
 
 def sleep_with_log(seconds, logger):
     logger.debug(f"休眠 {seconds} 秒...")
@@ -179,7 +179,7 @@ def main():
             "gasPrice": w3_src.eth.gas_price,
         })
         signed = w3_src.eth.account.sign_transaction(tx, private_key)
-        tx_hash = w3_src.eth.send_raw_transaction(signed.rawTransaction)
+        tx_hash = w3_src.eth.send_raw_transaction(signed.raw_transaction)
         logger.info(f"授权交易已发送: {tx_hash.hex()}")
         w3_src.eth.wait_for_transaction_receipt(tx_hash)
         logger.info("授权交易已上链")
@@ -222,7 +222,7 @@ def main():
             "value": 0
         })
         signed = w3_src.eth.account.sign_transaction(tx, private_key)
-        tx_hash = w3_src.eth.send_raw_transaction(signed.rawTransaction)
+        tx_hash = w3_src.eth.send_raw_transaction(signed.raw_transaction)
         logger.info(f"跨链交易已发送: {tx_hash.hex()}")
         receipt = w3_src.eth.wait_for_transaction_receipt(tx_hash)
         logger.info(f"跨链交易已上链: {receipt.transactionHash.hex()}")
@@ -241,7 +241,7 @@ def main():
     while True:
         try:
             resp = requests.get(
-                f"{wormholescan_api_base}/vaas/?txHash={src_tx_hash}",
+                f"{wormholescan_api_base}/vaas/?page=0&pageSize=5&sortOrder=ASC&txHash={src_tx_hash}",
                 headers={"accept": "application/json"}
             )
             data = resp.json()
@@ -305,7 +305,7 @@ def main():
     # 9. 目标链claim
     logger.info("在目标链执行 claim 操作...")
     tb_dst = w3_dst.eth.contract(address=checksum(token_bridge_contract_dst), abi=TOKENBRIDGE_ABI)
-    encoded_vm = Web3.toBytes(base64str=vaa)
+    encoded_vm = Web3.to_bytes(base64str=vaa)
     nonce = w3_dst.eth.get_transaction_count(account.address)
     if wtt_method == "transferTokensWithPayload":
         func = tb_dst.functions.completeTransferWithPayload(encoded_vm)
@@ -319,7 +319,7 @@ def main():
             "gasPrice": w3_dst.eth.gas_price,
         })
         signed = w3_dst.eth.account.sign_transaction(tx, private_key)
-        tx_hash = w3_dst.eth.send_raw_transaction(signed.rawTransaction)
+        tx_hash = w3_dst.eth.send_raw_transaction(signed.raw_transaction)
         logger.info(f"目标链 claim 交易已发送: {tx_hash.hex()}")
         receipt = w3_dst.eth.wait_for_transaction_receipt(tx_hash)
         logger.info(f"目标链 claim 交易已上链: {receipt.transactionHash.hex()}")

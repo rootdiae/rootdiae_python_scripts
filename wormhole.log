@@ -1,0 +1,85 @@
+2025-12-04 14:51:18,771 INFO 配置和日志系统加载完成。
+2025-12-04 15:00:41,818 INFO 配置和日志系统加载完成。
+2025-12-04 15:02:21,005 INFO 配置和日志系统加载完成。
+2025-12-04 15:02:21,592 INFO 使用账户: 0x9CAEE92287CAD179541bc7C44874b485b9AaC88b
+2025-12-04 15:03:33,311 INFO 配置和日志系统加载完成。
+2025-12-04 15:03:35,304 INFO 使用账户: 0x9CAEE92287CAD179541bc7C44874b485b9AaC88b
+2025-12-04 15:03:36,028 INFO 开始授权代币...
+2025-12-04 15:04:17,027 INFO 配置和日志系统加载完成。
+2025-12-04 15:04:58,694 INFO 配置和日志系统加载完成。
+2025-12-04 15:04:59,268 INFO 使用账户: 0x9CAEE92287CAD179541bc7C44874b485b9AaC88b
+2025-12-04 15:04:59,957 INFO 开始授权代币...
+2025-12-04 15:05:00,875 INFO 授权交易已发送: 534ced32c57f0c70f3da4afead6fb8d74923dd5d50e86ed85627c89c814c8693
+2025-12-04 15:05:13,430 INFO 授权交易已上链
+2025-12-04 15:05:13,430 INFO 发起跨链转账...
+2025-12-04 15:05:45,662 INFO 配置和日志系统加载完成。
+2025-12-04 15:05:46,269 INFO 使用账户: 0x9CAEE92287CAD179541bc7C44874b485b9AaC88b
+2025-12-04 15:05:46,944 INFO 开始授权代币...
+2025-12-04 15:05:47,880 INFO 授权交易已发送: 364c0b08b7e5832f13bed5e26f9e8e667369f03900c918d75ec0a5d1d07b26f5
+2025-12-04 15:06:00,683 INFO 授权交易已上链
+2025-12-04 15:06:00,683 INFO 发起跨链转账...
+2025-12-04 15:06:01,630 INFO 跨链交易已发送: e907dceae1a952f9a1b343f35778db15d3983e2c09c937b2f5949ecb6bf582f5
+2025-12-04 15:06:13,465 INFO 跨链交易已上链: e907dceae1a952f9a1b343f35778db15d3983e2c09c937b2f5949ecb6bf582f5
+2025-12-04 15:06:13,465 INFO 开始轮询 WormholeScan 获取 VAA...
+2025-12-04 15:06:13,666 ERROR 轮询 VAA 发生异常: HTTPSConnectionPool(host='api.testnet.wormholescan.io', port=443): Max retries exceeded with url: /vaas/?txHash=e907dceae1a952f9a1b343f35778db15d3983e2c09c937b2f5949ecb6bf582f5 (Caused by SSLError(SSLEOFError(8, '[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1000)')))
+2025-12-04 15:06:13,925 ERROR 轮询 VAA 发生异常: HTTPSConnectionPool(host='api.testnet.wormholescan.io', port=443): Max retries exceeded with url: /vaas/?txHash=e907dceae1a952f9a1b343f35778db15d3983e2c09c937b2f5949ecb6bf582f5 (Caused by SSLError(SSLEOFError(8, '[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1000)')))
+2025-12-04 15:06:15,026 ERROR 轮询 VAA 发生异常: 'str' object has no attribute 'get'
+2025-12-04 15:06:16,122 ERROR 轮询 VAA 发生异常: 'str' object has no attribute 'get'
+2025-12-04 15:06:17,166 ERROR 轮询 VAA 发生异常: 'str' object has no attribute 'get'
+2025-12-04 15:06:17,413 ERROR 轮询 VAA 发生异常: HTTPSConnectionPool(host='api.testnet.wormholescan.io', port=443): Max retries exceeded with url: /vaas/?txHash=e907dceae1a952f9a1b343f35778db15d3983e2c09c937b2f5949ecb6bf582f5 (Caused by SSLError(SSLEOFError(8, '[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1000)')))
+2025-12-04 15:06:18,505 ERROR 轮询 VAA 发生异常: 'str' object has no attribute 'get'
+2025-12-04 15:06:19,633 ERROR 轮询 VAA 发生异常: 'str' object has no attribute 'get'
+2025-12-04 15:06:19,901 ERROR 轮询 VAA 发生异常: HTTPSConnectionPool(host='api.testnet.wormholescan.io', port=443): Max retries exceeded with url: /vaas/?txHash=e907dceae1a952f9a1b343f35778db15d3983e2c09c937b2f5949ecb6bf582f5 (Caused by SSLError(SSLEOFError(8, '[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1000)')))
+2025-12-04 15:06:20,145 ERROR 轮询 VAA 发生异常: HTTPSConnectionPool(host='api.testnet.wormholescan.io', port=443): Max retries exceeded with url: /vaas/?txHash=e907dceae1a952f9a1b343f35778db15d3983e2c09c937b2f5949ecb6bf582f5 (Caused by SSLError(SSLEOFError(8, '[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1000)')))
+2025-12-04 15:06:21,242 ERROR 轮询 VAA 发生异常: 'str' object has no attribute 'get'
+2025-12-04 15:06:21,512 ERROR 轮询 VAA 发生异常: HTTPSConnectionPool(host='api.testnet.wormholescan.io', port=443): Max retries exceeded with url: /vaas/?txHash=e907dceae1a952f9a1b343f35778db15d3983e2c09c937b2f5949ecb6bf582f5 (Caused by SSLError(SSLEOFError(8, '[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1000)')))
+2025-12-04 15:06:22,632 ERROR 轮询 VAA 发生异常: 'str' object has no attribute 'get'
+2025-12-04 15:06:23,753 ERROR 轮询 VAA 发生异常: 'str' object has no attribute 'get'
+2025-12-04 15:06:23,983 ERROR 轮询 VAA 发生异常: HTTPSConnectionPool(host='api.testnet.wormholescan.io', port=443): Max retries exceeded with url: /vaas/?txHash=e907dceae1a952f9a1b343f35778db15d3983e2c09c937b2f5949ecb6bf582f5 (Caused by SSLError(SSLEOFError(8, '[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1000)')))
+2025-12-04 15:06:24,216 ERROR 轮询 VAA 发生异常: HTTPSConnectionPool(host='api.testnet.wormholescan.io', port=443): Max retries exceeded with url: /vaas/?txHash=e907dceae1a952f9a1b343f35778db15d3983e2c09c937b2f5949ecb6bf582f5 (Caused by SSLError(SSLEOFError(8, '[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1000)')))
+2025-12-04 15:06:25,280 ERROR 轮询 VAA 发生异常: 'str' object has no attribute 'get'
+2025-12-04 15:06:26,383 ERROR 轮询 VAA 发生异常: 'str' object has no attribute 'get'
+2025-12-04 15:06:27,480 ERROR 轮询 VAA 发生异常: 'str' object has no attribute 'get'
+2025-12-04 15:06:28,571 ERROR 轮询 VAA 发生异常: 'str' object has no attribute 'get'
+2025-12-04 15:06:29,626 ERROR 轮询 VAA 发生异常: 'str' object has no attribute 'get'
+2025-12-04 15:06:30,709 ERROR 轮询 VAA 发生异常: 'str' object has no attribute 'get'
+2025-12-04 15:06:31,794 ERROR 轮询 VAA 发生异常: 'str' object has no attribute 'get'
+2025-12-04 15:06:32,859 ERROR 轮询 VAA 发生异常: 'str' object has no attribute 'get'
+2025-12-04 15:06:33,965 ERROR 轮询 VAA 发生异常: 'str' object has no attribute 'get'
+2025-12-04 15:06:35,072 ERROR 轮询 VAA 发生异常: 'str' object has no attribute 'get'
+2025-12-04 15:06:36,183 ERROR 轮询 VAA 发生异常: 'str' object has no attribute 'get'
+2025-12-04 15:06:37,266 ERROR 轮询 VAA 发生异常: 'str' object has no attribute 'get'
+2025-12-04 15:06:38,331 ERROR 轮询 VAA 发生异常: 'str' object has no attribute 'get'
+2025-12-04 15:06:39,358 ERROR 轮询 VAA 发生异常: 'str' object has no attribute 'get'
+2025-12-04 15:06:40,407 ERROR 轮询 VAA 发生异常: 'str' object has no attribute 'get'
+2025-12-04 15:06:41,487 ERROR 轮询 VAA 发生异常: 'str' object has no attribute 'get'
+2025-12-04 15:06:42,557 ERROR 轮询 VAA 发生异常: 'str' object has no attribute 'get'
+2025-12-04 15:06:43,595 ERROR 轮询 VAA 发生异常: 'str' object has no attribute 'get'
+2025-12-04 15:06:44,683 ERROR 轮询 VAA 发生异常: 'str' object has no attribute 'get'
+2025-12-04 15:06:45,731 ERROR 轮询 VAA 发生异常: 'str' object has no attribute 'get'
+2025-12-04 15:06:46,811 ERROR 轮询 VAA 发生异常: 'str' object has no attribute 'get'
+2025-12-04 15:06:47,852 ERROR 轮询 VAA 发生异常: 'str' object has no attribute 'get'
+2025-12-04 15:06:48,968 ERROR 轮询 VAA 发生异常: 'str' object has no attribute 'get'
+2025-12-04 15:06:50,045 ERROR 轮询 VAA 发生异常: 'str' object has no attribute 'get'
+2025-12-04 15:06:51,153 ERROR 轮询 VAA 发生异常: 'str' object has no attribute 'get'
+2025-12-04 15:06:53,080 ERROR 轮询 VAA 发生异常: 'str' object has no attribute 'get'
+2025-12-04 15:06:54,163 ERROR 轮询 VAA 发生异常: 'str' object has no attribute 'get'
+2025-12-04 15:06:55,231 ERROR 轮询 VAA 发生异常: 'str' object has no attribute 'get'
+2025-12-04 15:06:57,448 ERROR 轮询 VAA 发生异常: 'str' object has no attribute 'get'
+2025-12-04 15:16:44,708 INFO 配置和日志系统加载完成。
+2025-12-04 15:16:45,285 INFO 使用账户: 0x9CAEE92287CAD179541bc7C44874b485b9AaC88b
+2025-12-04 15:16:45,968 INFO 开始轮询 WormholeScan 获取 VAA...
+2025-12-04 15:16:46,937 ERROR 轮询 VAA 发生异常: 'str' object has no attribute 'get'
+2025-12-04 15:16:48,018 ERROR 轮询 VAA 发生异常: 'str' object has no attribute 'get'
+2025-12-04 15:16:48,284 ERROR 轮询 VAA 发生异常: HTTPSConnectionPool(host='api.testnet.wormholescan.io', port=443): Max retries exceeded with url: /vaas/?page=0&pageSize=5&sortOrder=ASC&txHash=0xe907dceae1a952f9a1b343f35778db15d3983e2c09c937b2f5949ecb6bf582f5 (Caused by SSLError(SSLEOFError(8, '[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1000)')))
+2025-12-04 15:16:48,501 ERROR 轮询 VAA 发生异常: HTTPSConnectionPool(host='api.testnet.wormholescan.io', port=443): Max retries exceeded with url: /vaas/?page=0&pageSize=5&sortOrder=ASC&txHash=0xe907dceae1a952f9a1b343f35778db15d3983e2c09c937b2f5949ecb6bf582f5 (Caused by SSLError(SSLEOFError(8, '[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1000)')))
+2025-12-04 15:16:48,733 ERROR 轮询 VAA 发生异常: HTTPSConnectionPool(host='api.testnet.wormholescan.io', port=443): Max retries exceeded with url: /vaas/?page=0&pageSize=5&sortOrder=ASC&txHash=0xe907dceae1a952f9a1b343f35778db15d3983e2c09c937b2f5949ecb6bf582f5 (Caused by SSLError(SSLEOFError(8, '[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1000)')))
+2025-12-04 15:16:49,798 ERROR 轮询 VAA 发生异常: 'str' object has no attribute 'get'
+2025-12-04 15:16:50,930 ERROR 轮询 VAA 发生异常: 'str' object has no attribute 'get'
+2025-12-04 15:16:51,966 ERROR 轮询 VAA 发生异常: 'str' object has no attribute 'get'
+2025-12-04 15:16:53,104 ERROR 轮询 VAA 发生异常: 'str' object has no attribute 'get'
+2025-12-04 15:16:54,162 ERROR 轮询 VAA 发生异常: 'str' object has no attribute 'get'
+2025-12-04 15:16:54,422 ERROR 轮询 VAA 发生异常: HTTPSConnectionPool(host='api.testnet.wormholescan.io', port=443): Max retries exceeded with url: /vaas/?page=0&pageSize=5&sortOrder=ASC&txHash=0xe907dceae1a952f9a1b343f35778db15d3983e2c09c937b2f5949ecb6bf582f5 (Caused by SSLError(SSLEOFError(8, '[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1000)')))
+2025-12-04 15:16:54,647 ERROR 轮询 VAA 发生异常: HTTPSConnectionPool(host='api.testnet.wormholescan.io', port=443): Max retries exceeded with url: /vaas/?page=0&pageSize=5&sortOrder=ASC&txHash=0xe907dceae1a952f9a1b343f35778db15d3983e2c09c937b2f5949ecb6bf582f5 (Caused by SSLError(SSLEOFError(8, '[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1000)')))
+2025-12-04 15:16:54,865 ERROR 轮询 VAA 发生异常: HTTPSConnectionPool(host='api.testnet.wormholescan.io', port=443): Max retries exceeded with url: /vaas/?page=0&pageSize=5&sortOrder=ASC&txHash=0xe907dceae1a952f9a1b343f35778db15d3983e2c09c937b2f5949ecb6bf582f5 (Caused by SSLError(SSLEOFError(8, '[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1000)')))
+2025-12-04 15:16:55,949 ERROR 轮询 VAA 发生异常: 'str' object has no attribute 'get'
