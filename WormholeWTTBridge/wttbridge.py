@@ -1,11 +1,17 @@
 import os
 import time
 import yaml
+import json
+import base64 
 import logging
 import requests
 from decimal import Decimal, getcontext
+from web3.exceptions import ContractLogicError
 from web3 import Web3
 from dotenv import load_dotenv
+
+# 无法在目标链执行交易，gas估计失败，claim revert（Status:Fail with error 'invalid target chain'）
+
 
 # ========== ABI 常量 ==========
 TOKENBRIDGE_ABI = [
@@ -270,7 +276,12 @@ def main():
         parsed = resp.json()
         payload = parsed.get("parsedPayload", {})
         # 校验amount, toAddress, tokenAddress, toChain
-        if str(payload.get("amount")) != str(min_unit_amount):
+    
+        # WTT 统一使用 8 decimals 表示金额，需要转换
+        normalized_amount = int(payload.get("amount"))
+        scale = 10 ** (token["decimals"] - 8)
+        reconstructed_amount = normalized_amount * scale
+        if str(reconstructed_amount) != str(min_unit_amount):
             logger.error("VAA 金额校验失败")
             return
         if payload.get("toAddress", "").lower()[-40:] != recipient_on_dst.lower()[-40:]:
@@ -287,44 +298,196 @@ def main():
         logger.error(f"VAA 解析或校验失败: {e}")
         return
 
-    # 8. 冪等性检查
+    # 8. 幂等性检查
     logger.info("检查 VAA 是否已在目标链执行...")
     try:
-        resp = requests.get(
+        # 使用SSE流式请求，设置超时时间
+        response = requests.get(
             f"{wormholescan_api_base}/live-tracking/subscribe?txHash={src_tx_hash}",
-            headers={"accept": "application/json"}
+            headers={"accept": "application/json"},
+            stream=True,
+            timeout=10
         )
-        events = resp.json()
-        for event in events:
-            if event.get("event") == "VAA_REDEEMED" and event.get("status") == "DONE":
-                logger.info(f"VAA 已在目标链执行，目标链交易哈希: {event['data'].get('txHash')}")
+        
+        if response.status_code != 200:
+            logger.warning(f"Live tracking 请求失败，状态码: {response.status_code}")
+        else:
+            # 解析SSE流
+            lines = response.iter_lines(decode_unicode=True)
+            current_event = None
+            found_completed = False
+            target_chain_id = WORMHOLE_CHAIN_ID_MAP[dst["name"]]
+            
+            # 设置超时时间
+            start_time = time.time()
+            timeout = 5  # 最多读取5秒
+            
+            for line in lines:
+                # 检查超时
+                if time.time() - start_time > timeout:
+                    logger.info("Live tracking 读取超时，将尝试继续执行赎回")
+                    break
+                    
+                # 跳过空行
+                if not line:
+                    continue
+                    
+                # 解析SSE格式
+                if line.startswith('event:'):
+                    current_event = line[6:].strip()
+                elif line.startswith('data:'):
+                    data_str = line[5:].strip()
+                    try:
+                        data = json.loads(data_str)
+                        
+                        # 检查是否是目标链的VAA_REDEEMED事件
+                        if (current_event == 'VAA_REDEEMED' and 
+                            data.get('status') == 'DONE'):
+                            
+                            # 检查是否为目标链
+                            event_data = data.get('data', {})
+                            if event_data.get('chainId') == target_chain_id:
+                                logger.info(f"VAA 已在目标链执行，目标链交易哈希: {event_data.get('txHash')}")
+                                logger.info("跨链已完成，无需再次赎回")
+                                found_completed = True
+                                break
+                                
+                        elif (current_event == 'VAA_REDEEMED' and 
+                            data.get('status') == 'PENDING'):
+                            # 检查是否为目标链的PENDING事件
+                            event_data = data.get('data', {})
+                            vaa_id = event_data.get('vaaId', '')
+                            if vaa_id and '/' in vaa_id:
+                                chain_id_str = vaa_id.split('/')[0]
+                                try:
+                                    if int(chain_id_str) == target_chain_id:
+                                        logger.info("检测到VAA在目标链为PENDING状态，需要执行赎回")
+                                        break
+                                except ValueError:
+                                    pass
+                                    
+                    except json.JSONDecodeError:
+                        logger.debug(f"无法解析JSON数据: {data_str}")
+            
+            response.close()
+            
+            if found_completed:
+                logger.info("跨链已完成，退出程序")
                 return
+                
+            logger.info("VAA尚未在目标链执行，将进行赎回操作")
+            
     except Exception as e:
         logger.warning(f"Live tracking 检查失败: {e}")
+        logger.info("将尝试执行赎回操作")
 
     # 9. 目标链claim
     logger.info("在目标链执行 claim 操作...")
     tb_dst = w3_dst.eth.contract(address=checksum(token_bridge_contract_dst), abi=TOKENBRIDGE_ABI)
-    encoded_vm = Web3.to_bytes(base64str=vaa)
+
+    # ---- 修复点：正确构造 encodedVm bytes ----
+    # WormholeScan API 返回的 vaa 是 base64 字符串
+    # 合约 completeTransfer() 需要的是 bytes 类型，不是 hex 字符串
+    encodedVm_bytes = base64.b64decode(vaa)   # 直接得到 bytes，不要加 "0x"
+
     nonce = w3_dst.eth.get_transaction_count(account.address)
-    if wtt_method == "transferTokensWithPayload":
-        func = tb_dst.functions.completeTransferWithPayload(encoded_vm)
-    else:
-        func = tb_dst.functions.completeTransfer(encoded_vm)
+
     try:
+        # 正确传入 bytes，符合 TokenBridge 合约 ABI
+        if wtt_method == "transferTokensWithPayload":
+            func = tb_dst.functions.completeTransferWithPayload(encodedVm_bytes)
+        else:
+            func = tb_dst.functions.completeTransfer(encodedVm_bytes)
+
+        
+        # 获取当前gas费用信息（EIP-1559）
+        try:
+            fee_data = w3_dst.eth.fee_history(1, 'latest')
+            base_fee = fee_data['baseFeePerGas'][-1]  # 最新区块的baseFee
+            max_priority_fee = w3_dst.eth.max_priority_fee  # 获取优先级费用
+            
+            # 设置比baseFee高20%的maxFeePerGas
+            max_fee_per_gas = int(base_fee * 1.2)
+            
+            # 如果max_priority_fee过高，调整为合理值
+            if max_priority_fee > max_fee_per_gas * 0.5:  # 如果优先级费用超过maxFee的50%
+                max_priority_fee = max_fee_per_gas // 10  # 调整为maxFee的10%
+            
+            logger.info(f"Base Fee: {base_fee}, Max Priority Fee: {max_priority_fee}, Max Fee: {max_fee_per_gas}")
+            
+        except Exception as e:
+            logger.warning(f"获取fee数据失败: {e}, 使用fallback方法")
+            # fallback: 使用gas_price并转换为EIP-1559格式
+            gas_price = w3_dst.eth.gas_price
+            max_fee_per_gas = gas_price
+            max_priority_fee = int(gas_price * 0.1)  # 10%作为优先级费用
+        
+        # 估计gas
+        try:
+            estimated_gas = func.estimate_gas({"from": account.address})
+            gas_limit = int(estimated_gas * 1.3)  # 加30%安全边界（Arbitrum可能需要更多）
+        except Exception as e:
+            logger.warning(f"Gas估计失败: {e}, 使用默认值")
+            gas_limit = 500000  # 设置一个更合理的默认值
+        
+        # 构建EIP-1559交易
         tx = func.build_transaction({
             "from": account.address,
             "nonce": nonce,
-            "gas": 800000,
-            "gasPrice": w3_dst.eth.gas_price,
+            "gas": gas_limit,
+            "maxFeePerGas": max_fee_per_gas,
+            "maxPriorityFeePerGas": max_priority_fee,
+            "chainId": w3_dst.eth.chain_id,  # 明确指定chainId
         })
+        
         signed = w3_dst.eth.account.sign_transaction(tx, private_key)
         tx_hash = w3_dst.eth.send_raw_transaction(signed.raw_transaction)
         logger.info(f"目标链 claim 交易已发送: {tx_hash.hex()}")
-        receipt = w3_dst.eth.wait_for_transaction_receipt(tx_hash)
-        logger.info(f"目标链 claim 交易已上链: {receipt.transactionHash.hex()}")
+        
+        # 等待交易确认
+        receipt = w3_dst.eth.wait_for_transaction_receipt(tx_hash, timeout=120, poll_latency=1)
+        
+        if receipt.status == 1:
+            logger.info(f"目标链 claim 交易成功: {receipt.transactionHash.hex()}")
+            logger.info(f"Gas used: {receipt.gasUsed}")
+        else:
+            logger.error(f"目标链 claim 交易失败: {receipt.transactionHash.hex()}")
+            
     except Exception as e:
         logger.error(f"目标链 claim 操作失败: {e}")
+        
+        # 如果是因为gas费用问题，尝试再次发送
+        if "max fee per gas less than block base fee" in str(e):
+            logger.info("检测到gas费用问题，尝试重新发送...")
+            # 重新获取更高的gas费用
+            try:
+                fee_data = w3_dst.eth.fee_history(1, 'latest')
+                base_fee = fee_data['baseFeePerGas'][-1]
+                # 设置更高的maxFeePerGas（比baseFee高50%）
+                max_fee_per_gas = int(base_fee * 1.5)
+                max_priority_fee = int(max_fee_per_gas * 0.1)
+                
+                tx = func.build_transaction({
+                    "from": account.address,
+                    "nonce": nonce,
+                    "gas": gas_limit,
+                    "maxFeePerGas": max_fee_per_gas,
+                    "maxPriorityFeePerGas": max_priority_fee,
+                    "chainId": w3_dst.eth.chain_id,
+                })
+                
+                signed = w3_dst.eth.account.sign_transaction(tx, private_key)
+                tx_hash = w3_dst.eth.send_raw_transaction(signed.raw_transaction)
+                logger.info(f"重新发送交易: {tx_hash.hex()}")
+                receipt = w3_dst.eth.wait_for_transaction_receipt(tx_hash, timeout=120, poll_latency=1)
+                
+                if receipt.status == 1:
+                    logger.info(f"重新发送的交易成功: {receipt.transactionHash.hex()}")
+                else:
+                    logger.error(f"重新发送的交易失败: {receipt.transactionHash.hex()}")
+                    
+            except Exception as retry_e:
+                logger.error(f"重新发送失败: {retry_e}")
 
 if __name__ == "__main__":
     main()
