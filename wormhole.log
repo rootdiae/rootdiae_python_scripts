@@ -83,3 +83,141 @@
 2025-12-04 15:16:54,647 ERROR 轮询 VAA 发生异常: HTTPSConnectionPool(host='api.testnet.wormholescan.io', port=443): Max retries exceeded with url: /vaas/?page=0&pageSize=5&sortOrder=ASC&txHash=0xe907dceae1a952f9a1b343f35778db15d3983e2c09c937b2f5949ecb6bf582f5 (Caused by SSLError(SSLEOFError(8, '[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1000)')))
 2025-12-04 15:16:54,865 ERROR 轮询 VAA 发生异常: HTTPSConnectionPool(host='api.testnet.wormholescan.io', port=443): Max retries exceeded with url: /vaas/?page=0&pageSize=5&sortOrder=ASC&txHash=0xe907dceae1a952f9a1b343f35778db15d3983e2c09c937b2f5949ecb6bf582f5 (Caused by SSLError(SSLEOFError(8, '[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1000)')))
 2025-12-04 15:16:55,949 ERROR 轮询 VAA 发生异常: 'str' object has no attribute 'get'
+2025-12-05 10:51:26,594 INFO 配置和日志系统加载完成。
+2025-12-05 10:51:37,590 INFO 配置和日志系统加载完成。
+2025-12-05 10:51:38,107 INFO 使用账户: 0x9CAEE92287CAD179541bc7C44874b485b9AaC88b
+2025-12-05 10:51:39,453 INFO 开始轮询 WormholeScan 获取 VAA...
+2025-12-05 10:51:40,449 ERROR 轮询 VAA 发生异常: 'str' object has no attribute 'get'
+2025-12-05 10:51:41,478 ERROR 轮询 VAA 发生异常: 'str' object has no attribute 'get'
+2025-12-05 10:51:42,592 ERROR 轮询 VAA 发生异常: 'str' object has no attribute 'get'
+2025-12-05 10:51:43,637 ERROR 轮询 VAA 发生异常: 'str' object has no attribute 'get'
+2025-12-05 10:51:44,685 ERROR 轮询 VAA 发生异常: 'str' object has no attribute 'get'
+2025-12-05 10:51:45,788 ERROR 轮询 VAA 发生异常: 'str' object has no attribute 'get'
+2025-12-05 10:51:46,832 ERROR 轮询 VAA 发生异常: 'str' object has no attribute 'get'
+2025-12-05 10:51:47,903 ERROR 轮询 VAA 发生异常: 'str' object has no attribute 'get'
+2025-12-05 10:51:48,993 ERROR 轮询 VAA 发生异常: 'str' object has no attribute 'get'
+2025-12-05 10:56:15,917 INFO 配置和日志系统加载完成。
+2025-12-05 10:56:16,785 INFO 使用账户: 0x9CAEE92287CAD179541bc7C44874b485b9AaC88b
+2025-12-05 10:56:18,046 INFO 开始轮询 WormholeScan 获取 VAA...
+2025-12-05 10:56:19,025 ERROR 轮询 VAA 发生异常: 'str' object has no attribute 'get'
+2025-12-05 10:56:20,121 ERROR 轮询 VAA 发生异常: 'str' object has no attribute 'get'
+2025-12-05 10:56:21,187 ERROR 轮询 VAA 发生异常: 'str' object has no attribute 'get'
+2025-12-05 10:56:22,221 ERROR 轮询 VAA 发生异常: 'str' object has no attribute 'get'
+2025-12-05 11:05:50,232 INFO 配置和日志系统加载完成。
+2025-12-05 11:05:55,920 INFO 配置和日志系统加载完成。
+2025-12-05 11:06:08,866 INFO 配置和日志系统加载完成。
+2025-12-05 11:06:09,344 INFO 使用账户: 0x9CAEE92287CAD179541bc7C44874b485b9AaC88b
+2025-12-05 11:06:10,094 INFO 开始轮询 WormholeScan 获取 VAA...
+2025-12-05 11:06:11,056 INFO VAA 已获取: AQAAAAABAIxXWp7rB35ySEcvEioFMO1l... (base64)
+2025-12-05 11:06:11,056 INFO 解析并校验 VAA...
+2025-12-05 11:06:12,031 INFO VAA 校验通过
+2025-12-05 11:06:12,031 INFO VAA parsed toChain=23, expected dst wormhole chain id=23
+2025-12-05 11:06:12,031 INFO 检查 VAA 是否已在目标链执行...
+2025-12-05 11:06:18,973 INFO Live tracking 读取超时，将尝试继续执行赎回
+2025-12-05 11:06:18,975 INFO VAA尚未在目标链执行，将进行赎回操作
+2025-12-05 11:06:18,975 INFO 在目标链执行 claim 操作...
+2025-12-05 11:06:43,905 INFO 配置和日志系统加载完成。
+2025-12-05 11:06:44,530 INFO 使用账户: 0x9CAEE92287CAD179541bc7C44874b485b9AaC88b
+2025-12-05 11:06:45,358 INFO 开始轮询 WormholeScan 获取 VAA...
+2025-12-05 11:06:46,359 INFO VAA 已获取: AQAAAAABAIxXWp7rB35ySEcvEioFMO1l... (base64)
+2025-12-05 11:06:46,360 INFO 解析并校验 VAA...
+2025-12-05 11:06:47,314 INFO VAA 校验通过
+2025-12-05 11:06:47,314 INFO VAA parsed toChain=23, expected dst wormhole chain id=23
+2025-12-05 11:06:47,314 INFO 检查 VAA 是否已在目标链执行...
+2025-12-05 11:06:54,257 INFO Live tracking 读取超时，将尝试继续执行赎回
+2025-12-05 11:06:54,259 INFO VAA尚未在目标链执行，将进行赎回操作
+2025-12-05 11:06:54,259 INFO 在目标链执行 claim 操作...
+2025-12-05 11:06:55,487 WARNING Gas估计时发生合约回滚: ('execution reverted: invalid target chain', '0x08c379a000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000014696e76616c69642074617267657420636861696e000000000000000000000000'). 可能的 revert reason：('execution reverted: invalid target chain', '0x08c379a000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000014696e76616c69642074617267657420636861696e000000000000000000000000')
+2025-12-05 11:06:55,487 ERROR 检测到合约在模拟时返回 invalid target chain，终止赎回。请检查 VAA 的 toChain 与目标链配置是否一致，或确认 token_bridge_contract_dst 是否为目标链的正确 Bridge 合约地址。
+2025-12-05 11:10:53,414 INFO 配置和日志系统加载完成。
+2025-12-05 11:10:53,988 INFO 使用账户: 0x9CAEE92287CAD179541bc7C44874b485b9AaC88b
+2025-12-05 11:10:54,705 INFO 开始轮询 WormholeScan 获取 VAA...
+2025-12-05 11:10:55,890 INFO VAA 已获取: AQAAAAABAIxXWp7rB35ySEcvEioFMO1l... (base64)
+2025-12-05 11:10:55,890 INFO 解析并校验 VAA...
+2025-12-05 11:10:57,032 INFO VAA 校验通过
+2025-12-05 11:10:57,032 INFO parsed.vaa summary: emitterChain=10002, emitterAddress=0x000000000000000000000000db5492265f6038831e89f495670ff909ade94bd9, sequence=343413, nonce=7, guardianSetIndex=0
+2025-12-05 11:10:57,032 INFO parsedPayload: amount=100000000, tokenChain=10002, tokenAddress=0x0000000000000000000000007a69434037601dbf509c9a8eaf32d24c3d1a3524, toChain=23, toAddress=0x0000000000000000000000009caee92287cad179541bc7c44874b485b9aac88b, payloadType=1
+2025-12-05 11:10:57,032 INFO VAA raw bytes length: 256; head(64 bytes) hex: 010000000001008c575a9eeb077e7248472f122a0530ed6532deced2fe69ff9c08f98e028ebdae6b3a0c1b100db4740eaa04d5cd52c2ce584d3ea104a617af96
+2025-12-05 11:10:57,033 INFO keccak256(VAA) (bytes32 hex): 6c2a77af9652cfff4900a5074a1ddc7820ba0453c2460246e262ee32ae5499c9
+2025-12-05 11:10:57,035 WARNING 目标链 Bridge 合约未暴露常见 redeemed getter（completedTransfers/isTransferCompleted）或调用失败。
+2025-12-05 11:10:57,035 INFO 诊断信息打印完成：请比对 parsedPayload.toChain 与 Bridge 合约的内部链 ID（若Bridge提供）。如仍报 invalid target chain，说明 Bridge 合约与 VAA 的目标 chain id 不匹配（可能 Bridge 地址配置错误或此 VAA 发往别的网络）。
+2025-12-05 11:10:57,035 INFO VAA parsed toChain=23, expected dst wormhole chain id=23
+2025-12-05 11:10:57,035 INFO 检查 VAA 是否已在目标链执行...
+2025-12-05 11:11:04,193 INFO Live tracking 读取超时，将尝试继续执行赎回
+2025-12-05 11:11:04,195 INFO VAA尚未在目标链执行，将进行赎回操作
+2025-12-05 11:11:04,195 INFO 在目标链执行 claim 操作...
+2025-12-05 11:11:05,215 WARNING Gas估计时发生合约回滚: ('execution reverted: invalid target chain', '0x08c379a000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000014696e76616c69642074617267657420636861696e000000000000000000000000'). 可能的 revert reason：('execution reverted: invalid target chain', '0x08c379a000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000014696e76616c69642074617267657420636861696e000000000000000000000000')
+2025-12-05 11:11:05,215 ERROR 检测到合约在模拟时返回 invalid target chain，终止赎回。请检查 VAA 的 toChain 与目标链配置是否一致，或确认 token_bridge_contract_dst 是否为目标链的正确 Bridge 合约地址。
+2025-12-05 11:48:08,028 INFO 配置和日志系统加载完成。
+2025-12-05 11:48:08,919 INFO 使用账户: 0x9CAEE92287CAD179541bc7C44874b485b9AaC88b
+2025-12-05 11:48:09,792 INFO 开始授权代币...
+2025-12-05 11:48:11,306 INFO 授权交易已发送: 49963c50787ff0073308ac6736fe71565b70e538f7712914bc61d10a3333750b
+2025-12-05 11:48:13,644 INFO 授权交易已上链
+2025-12-05 11:48:13,644 INFO 发起跨链转账...
+2025-12-05 11:48:53,371 INFO 配置和日志系统加载完成。
+2025-12-05 11:48:53,906 INFO 使用账户: 0x9CAEE92287CAD179541bc7C44874b485b9AaC88b
+2025-12-05 11:48:55,188 INFO 发起跨链转账...
+2025-12-05 11:48:56,804 INFO 跨链交易已发送: d6c4d3b87415e77af5f73442b1afe935f6ebd740130cc7779a80b1960ec6e5ac
+2025-12-05 11:49:00,729 INFO 跨链交易已上链: d6c4d3b87415e77af5f73442b1afe935f6ebd740130cc7779a80b1960ec6e5ac
+2025-12-05 11:49:00,729 INFO 开始轮询 WormholeScan 获取 VAA...
+2025-12-05 11:59:01,227 WARNING 等待 VAA 已超过 600 秒...
+2025-12-05 11:59:43,321 ERROR 轮询 VAA 发生异常: HTTPSConnectionPool(host='api.testnet.wormholescan.io', port=443): Max retries exceeded with url: /api/v1/vaas/?page=0&pageSize=5&sortOrder=ASC&txHash=d6c4d3b87415e77af5f73442b1afe935f6ebd740130cc7779a80b1960ec6e5ac (Caused by SSLError(SSLEOFError(8, '[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1000)')))
+2025-12-05 12:00:01,450 WARNING 等待 VAA 已超过 660 秒...
+2025-12-05 12:01:01,477 WARNING 等待 VAA 已超过 720 秒...
+2025-12-05 12:02:00,843 WARNING 等待 VAA 已超过 780 秒...
+2025-12-05 12:03:01,587 WARNING 等待 VAA 已超过 840 秒...
+2025-12-05 12:04:00,855 WARNING 等待 VAA 已超过 900 秒...
+2025-12-05 12:04:48,389 INFO VAA 已获取: AQAAAAABAAn9PPjsJDzjT80BH/7fLh2e... (base64)
+2025-12-05 12:04:48,390 INFO 解析并校验 VAA...
+2025-12-05 12:04:49,315 INFO VAA 校验通过
+2025-12-05 12:04:49,316 INFO parsed.vaa summary: emitterChain=10002, emitterAddress=0x000000000000000000000000db5492265f6038831e89f495670ff909ade94bd9, sequence=343417, nonce=9, guardianSetIndex=0
+2025-12-05 12:04:49,316 INFO parsedPayload: amount=100000000, tokenChain=10002, tokenAddress=0x0000000000000000000000007a69434037601dbf509c9a8eaf32d24c3d1a3524, toChain=23, toAddress=0x0000000000000000000000009caee92287cad179541bc7c44874b485b9aac88b, payloadType=1
+2025-12-05 12:04:49,316 INFO VAA raw bytes length: 256; head(64 bytes) hex: 0100000000010009fd3cf8ec243ce34fcd011ffedf2e1d9e15d36c085a6e612b6da1aed7ce84df119221bc7a1c97e34c3774988fa85aa0f91d78242f45dfe193
+2025-12-05 12:04:49,316 INFO keccak256(VAA) (bytes32 hex): fa9199797ac114055bc7a78bca62d88485c5657fdd8494671ddfa99ae6e1e74b
+2025-12-05 12:04:49,316 WARNING 目标链 Bridge 合约未暴露常见 redeemed getter（completedTransfers/isTransferCompleted）或调用失败。
+2025-12-05 12:04:49,316 INFO 诊断信息打印完成：请比对 parsedPayload.toChain 与 Bridge 合约的内部链 ID（若Bridge提供）。如仍报 invalid target chain，说明 Bridge 合约与 VAA 的目标 chain id 不匹配（可能 Bridge 地址配置错误或此 VAA 发往别的网络）。
+2025-12-05 12:04:49,316 INFO VAA parsed toChain=23, expected dst wormhole chain id=23
+2025-12-05 12:04:49,316 INFO 检查 VAA 是否已在目标链执行...
+2025-12-05 12:04:56,279 INFO Live tracking 读取超时，将尝试继续执行赎回
+2025-12-05 12:04:56,284 INFO VAA尚未在目标链执行，将进行赎回操作
+2025-12-05 12:04:56,286 INFO 在目标链执行 claim 操作...
+2025-12-05 12:04:57,149 WARNING Gas估计时发生合约回滚: ('execution reverted: invalid target chain', '0x08c379a000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000014696e76616c69642074617267657420636861696e000000000000000000000000'). 可能的 revert reason：('execution reverted: invalid target chain', '0x08c379a000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000014696e76616c69642074617267657420636861696e000000000000000000000000')
+2025-12-05 12:04:57,149 ERROR 检测到合约在模拟时返回 invalid target chain，终止赎回。请检查 VAA 的 toChain 与目标链配置是否一致，或确认 token_bridge_contract_dst 是否为目标链的正确 Bridge 合约地址。
+2025-12-05 13:45:06,192 INFO 配置和日志系统加载完成。
+2025-12-05 13:45:06,795 INFO 使用账户: 0x9CAEE92287CAD179541bc7C44874b485b9AaC88b
+2025-12-05 13:45:07,616 INFO 发起跨链转账...
+2025-12-05 13:45:08,685 INFO 跨链交易已发送: 96f21e3d785777135843e795f9a4060f9ffb217277522af8da1339296397f7e8
+2025-12-05 13:45:24,845 INFO 跨链交易已上链: 96f21e3d785777135843e795f9a4060f9ffb217277522af8da1339296397f7e8
+2025-12-05 13:45:24,846 INFO 开始轮询 WormholeScan 获取 VAA...
+2025-12-05 13:46:01,350 INFO 配置和日志系统加载完成。
+2025-12-05 13:46:01,982 INFO 使用账户: 0x9CAEE92287CAD179541bc7C44874b485b9AaC88b
+2025-12-05 13:46:02,790 INFO 开始授权代币...
+2025-12-05 13:46:03,872 INFO 授权交易已发送: 650f4fd34013e26acb1c6f0a64a53ac8146c11f3d870248c8a93fa9891d96dc2
+2025-12-05 13:46:12,731 INFO 授权交易已上链
+2025-12-05 13:46:12,731 INFO 发起跨链转账...
+2025-12-05 13:46:13,958 INFO 跨链交易已发送: 49d3fd312b92320cbd4e15a78f6cb2f58f8e751a6a00d54ed1e7ff9620e9ce84
+2025-12-05 13:46:24,676 INFO 跨链交易已上链: 49d3fd312b92320cbd4e15a78f6cb2f58f8e751a6a00d54ed1e7ff9620e9ce84
+2025-12-05 13:46:24,677 INFO 开始轮询 WormholeScan 获取 VAA...
+2025-12-05 13:56:25,669 WARNING 等待 VAA 已超过 600 秒...
+2025-12-05 13:57:25,380 WARNING 等待 VAA 已超过 660 秒...
+2025-12-05 13:58:25,069 WARNING 等待 VAA 已超过 720 秒...
+2025-12-05 13:59:24,795 WARNING 等待 VAA 已超过 780 秒...
+2025-12-05 14:00:00,577 INFO VAA 已获取: AQAAAAABAPNug2wS6ajjNPM4XzCUSy/B... (base64)
+2025-12-05 14:00:00,577 INFO 解析并校验 VAA...
+2025-12-05 14:00:01,767 INFO VAA 校验通过
+2025-12-05 14:00:01,767 INFO parsed.vaa summary: emitterChain=10002, emitterAddress=0x000000000000000000000000db5492265f6038831e89f495670ff909ade94bd9, sequence=343418, nonce=12, guardianSetIndex=0
+2025-12-05 14:00:01,767 INFO parsedPayload: amount=100000000, tokenChain=10002, tokenAddress=0x0000000000000000000000007a69434037601dbf509c9a8eaf32d24c3d1a3524, toChain=10003, toAddress=0x0000000000000000000000009caee92287cad179541bc7c44874b485b9aac88b, payloadType=1
+2025-12-05 14:00:01,767 INFO VAA raw bytes length: 256; head(64 bytes) hex: 01000000000100f36e836c12e9a8e334f3385f30944b2fc1251b746f624b913d104f14fe5b347a765a9f498c4d07a01c633cd40803b55075735140a3ff3217be
+2025-12-05 14:00:01,767 INFO keccak256(VAA) (bytes32 hex): 110677b872f09a7fc0b925b89e6b506c2835ed6de79f7f5a920ddd64b2805285
+2025-12-05 14:00:01,768 WARNING 目标链 Bridge 合约未暴露常见 redeemed getter（completedTransfers/isTransferCompleted）或调用失败。
+2025-12-05 14:00:01,768 INFO 诊断信息打印完成：请比对 parsedPayload.toChain 与 Bridge 合约的内部链 ID（若Bridge提供）。如仍报 invalid target chain，说明 Bridge 合约与 VAA 的目标 chain id 不匹配（可能 Bridge 地址配置错误或此 VAA 发往别的网络）。
+2025-12-05 14:00:01,768 INFO VAA parsed toChain=10003, expected dst wormhole chain id=10003
+2025-12-05 14:00:01,768 INFO 检查 VAA 是否已在目标链执行...
+2025-12-05 14:00:08,905 INFO Live tracking 读取超时，将尝试继续执行赎回
+2025-12-05 14:00:08,906 INFO VAA尚未在目标链执行，将进行赎回操作
+2025-12-05 14:00:08,906 INFO 在目标链执行 claim 操作...
+2025-12-05 14:00:09,720 INFO Gas 估计成功: estimated=156434, gas_limit=203364
+2025-12-05 14:00:10,629 INFO Base Fee: 20006000, Max Priority Fee: 0, Max Fee: 24007200
+2025-12-05 14:00:11,133 INFO 目标链 claim 交易已发送: 05ac66772b24adc9fe97de362771e0eda74021f165dd122ab0075318d25dbcb2
+2025-12-05 14:00:11,403 INFO 目标链 claim 交易成功: 05ac66772b24adc9fe97de362771e0eda74021f165dd122ab0075318d25dbcb2
+2025-12-05 14:00:11,403 INFO Gas used: 152863
