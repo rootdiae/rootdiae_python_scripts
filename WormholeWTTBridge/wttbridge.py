@@ -10,7 +10,8 @@ from web3.exceptions import ContractLogicError
 from web3 import Web3
 from dotenv import load_dotenv
 
-# 目标链claim仅保留最小必要的claim交易，去掉了重试机制和复杂的错误处理
+# transferTokens可以跨链代币，eth to arb和arb to eth都可以正常跨链
+# transferTokensWithPayload没有找到测试网代币，需要正式网再小额测试
 
 
 # ========== ABI 常量 ==========
@@ -135,6 +136,48 @@ def init_web3(rpc_url):
         return None
     return w3
 
+# ========== 新增：EIP-1559 Gas参数构建工具 ==========
+def build_tx_with_gas_params(w3, tx_dict, logger):
+    """
+    构建交易参数，优先使用EIP-1559格式（maxFeePerGas和maxPriorityFeePerGas），
+    如果失败则回退到传统gasPrice格式。
+    :param w3: Web3对象
+    :param tx_dict: 交易参数字典（from, nonce, gas, value等）
+    :param logger: 日志对象
+    :return: 完整的交易参数字典
+    """
+    tx = tx_dict.copy()
+    chain_id = w3.eth.chain_id
+    tx["chainId"] = chain_id
+
+    # 优先尝试EIP-1559格式
+    try:
+        # 获取最新区块的baseFeePerGas
+        fee_data = w3.eth.fee_history(1, 'latest')
+        base_fee = int(fee_data['baseFeePerGas'][-1])
+        # 获取最大优先费
+        max_priority_fee = int(w3.eth.max_priority_fee)
+        # 计算最大总费用（基础费用的1.2倍）
+        max_fee_per_gas = int(base_fee * 1.2)
+        # 优先费不能过高
+        if max_priority_fee > max_fee_per_gas * 0.5:
+            max_priority_fee = max_fee_per_gas // 10
+        tx["maxFeePerGas"] = max_fee_per_gas
+        tx["maxPriorityFeePerGas"] = max_priority_fee
+        logger.info(f"使用EIP-1559参数构建交易: maxFeePerGas={max_fee_per_gas}, maxPriorityFeePerGas={max_priority_fee}")
+        return tx
+    except Exception as e:
+        logger.warning(f"EIP-1559参数获取失败: {e}，尝试使用传统gasPrice参数")
+        # 回退到传统gasPrice
+        try:
+            gas_price = w3.eth.gas_price
+            tx["gasPrice"] = gas_price
+            logger.info(f"使用传统gasPrice构建交易: gasPrice={gas_price}")
+            return tx
+        except Exception as ee:
+            logger.error(f"获取gasPrice失败: {ee}，无法构建交易参数")
+            raise
+
 # ========== 主流程 ==========
 def main():
     # 1. 加载配置和私钥
@@ -185,12 +228,15 @@ def main():
     if token.get("approve_required", True) and mode == "full_send":
         logger.info("开始授权代币...")
         nonce = w3_src.eth.get_transaction_count(account.address)
-        tx = erc20.functions.approve(token_bridge_contract_src, min_unit_amount).build_transaction({
+        approve_tx_dict = {
             "from": account.address,
             "nonce": nonce,
             "gas": 100000,
-            "gasPrice": w3_src.eth.gas_price,
-        })
+            "value": 0
+        }
+        # 构建交易参数（优先EIP-1559，回退gasPrice）
+        approve_tx_dict = build_tx_with_gas_params(w3_src, approve_tx_dict, logger)
+        tx = erc20.functions.approve(token_bridge_contract_src, min_unit_amount).build_transaction(approve_tx_dict)
         signed = w3_src.eth.account.sign_transaction(tx, private_key)
         tx_hash = w3_src.eth.send_raw_transaction(signed.raw_transaction)
         logger.info(f"授权交易已发送: {tx_hash.hex()}")
@@ -234,13 +280,15 @@ def main():
                 nonce,
                 payload_bytes
             )
-        tx = func.build_transaction({
+        tx_dict = {
             "from": account.address,
             "nonce": nonce,
             "gas": 500000,
-            "gasPrice": w3_src.eth.gas_price,
             "value": 0
-        })
+        }
+        # 构建交易参数（优先EIP-1559，回退gasPrice）
+        tx_dict = build_tx_with_gas_params(w3_src, tx_dict, logger)
+        tx = func.build_transaction(tx_dict)
         signed = w3_src.eth.account.sign_transaction(tx, private_key)
         tx_hash = w3_src.eth.send_raw_transaction(signed.raw_transaction)
         logger.info(f"跨链交易已发送: {tx_hash.hex()}")
@@ -305,13 +353,6 @@ def main():
                         else:
                             logger.info(f"VAA地址校验成功: {parsed_payload.get('toAddress', '')}")
                         
-                        # 校验代币地址
-                        if parsed_payload.get("tokenAddress", "").lower()[-40:] != token["address_on_src"].lower()[-40:]:
-                            logger.error("VAA 代币地址校验失败")
-                            return
-                        else:
-                            logger.info(f"VAA代币地址校验成功: {parsed_payload.get('tokenAddress', '')}")
-                        
                         # 校验目标链ID
                         if int(parsed_payload.get("toChain")) != WORMHOLE_CHAIN_ID_MAP[dst["name"]]:
                             logger.error("VAA 目标链ID校验失败")
@@ -334,7 +375,7 @@ def main():
             else:
                 # 响应状态码非200，属于异常情况
                 logger.error(f"WormholeScan API响应状态码异常: {resp.status_code}，响应内容: {resp.text}")
-            # 若找到VAA则退出循环（原逻辑保留）
+            # 若找到VAA则退出循环
             if vaa and parsed_payload:
                 break
         except Exception as e:
@@ -343,7 +384,6 @@ def main():
 
     # 8. 幂等性检查
     logger.info("检查 VAA 是否已在目标链执行...")
-    # ========== Live tracking 检查（更稳健） ==========
     try:
         response = requests.get(
             f"{wormholescan_api_base}/live-tracking/subscribe?txHash={src_tx_hash}",
@@ -383,14 +423,13 @@ def main():
                             # 打印详细的event和status日志
                             event = data.get('event', '')
                             status = data.get('status', '')
-                            
                             if current_event == 'SOURCE_TX':
                                 logger.info(f'"event":"SOURCE_TX","status":"{status}"')
                             elif current_event == 'SIGNED_VAA':
                                 logger.info(f'"event":"SIGNED_VAA","status":"{status}"')
                             elif current_event == 'VAA_REDEEMED':
                                 logger.info(f'"event":"VAA_REDEEMED","status":"{status}"')
-                                if m-sepolia-testnet.api.pocket.networkstatus == 'DONE':
+                                if status == 'DONE':
                                     event_data = data.get('data', {})
                                     if event_data.get('chainId') == wormhole_dst_chain_id:
                                         logger.info(f"VAA 已在目标链执行，目标链交易哈希: {event_data.get('txHash')}")
@@ -432,13 +471,10 @@ def main():
 
     # 根据传输类型选择对应的合约函数
     if wtt_method == "transferTokensWithPayload":
-        # 带Payload的传输对应completeTransferWithPayload函数
         func = tb_dst.functions.completeTransferWithPayload(encodedVm_bytes)
     else:
-        # 普通传输对应completeTransfer函数
         func = tb_dst.functions.completeTransfer(encodedVm_bytes)
 
-    # 构建Gas估算用的交易参数字典
     nonce = w3_dst.eth.get_transaction_count(account.address, 'pending')
     tx_for_estimate = {
         "from": account.address,  # 交易发起地址
@@ -452,42 +488,17 @@ def main():
         logger.info(f"Gas估算完成 - 估算值: {estimated_gas}, 最终上限: {gas_limit}")
     except Exception as e:
         logger.warning(f"Gas估算失败: {e}，使用默认Gas上限500000")
-        gas_limit = 500000  # 估算失败时使用默认值
+        gas_limit = 500000
 
-    # 获取EIP-1559格式的Gas价格参数
-    try:
-        # 获取最新的区块费用历史数据
-        fee_data = w3_dst.eth.fee_history(1, 'latest')
-        base_fee = int(fee_data['baseFeePerGas'][-1])  # 基础费用（来自最新区块）
-        # 获取建议的最大优先费用（矿工小费）
-        max_priority_fee = int(w3_dst.eth.max_priority_fee)
-        # 计算最大总费用（基础费用的1.2倍，应对短期波动）
-        max_fee_per_gas = int(base_fee * 1.2)
-        # 调整优先费用：若超过最大总费用的50%，则降低为总费用的1/10（避免参数不合理）
-        if max_priority_fee > max_fee_per_gas * 0.5:
-            max_priority_fee = max_fee_per_gas // 10
-        logger.info(f"EIP-1559参数获取完成 - 基础费用: {base_fee}, 最大优先费用: {max_priority_fee}, 最大总费用: {max_fee_per_gas}")
-    except Exception as e:
-        logger.warning(f"EIP-1559参数获取失败: {e}，使用GasPrice作为备用方案")
-        # 备用方案：使用当前网络的GasPrice作为最大总费用
-        gas_price = w3_dst.eth.gas_price
-        max_fee_per_gas = gas_price
-        max_priority_fee = int(gas_price * 0.1)  # 优先费用为GasPrice的10%
-
-    # 获取账户当前nonce（pending状态，包含未确认交易）
-    nonce = w3_dst.eth.get_transaction_count(account.address, 'pending')
-    logger.info(f"获取到账户当前nonce: {nonce}")
-
-    # 构建完整的交易参数
-    tx = func.build_transaction({
+    # 构建交易参数（优先EIP-1559，回退gasPrice）
+    tx_dict = {
         "from": account.address,
         "nonce": nonce,
         "gas": gas_limit,
-        "maxFeePerGas": max_fee_per_gas,
-        "maxPriorityFeePerGas": max_priority_fee,
-        "chainId": w3_dst.eth.chain_id,  # 目标链的Chain ID（避免交易跨链复用）
         "value": 0
-    })
+    }
+    tx_dict = build_tx_with_gas_params(w3_dst, tx_dict, logger)
+    tx = func.build_transaction(tx_dict)
     logger.info("交易参数构建完成，准备签名")
 
     # 使用私钥对交易进行签名
