@@ -1,0 +1,53 @@
+mode: "full_send"       # full_send（发起跨链-查询vaa-目标链执行） | redeem_only（查询vaa-目标链执行）
+
+src:
+  name: "ethereum"  # 源链名称（用于日志和 Wormhole chain id 映射）
+  rpc: "https://ethereum-sepolia-rpc.publicnode.com"  # 源链 RPC 地址
+  wormhole_chain_id: 10002  # 源链 Wormhole chain id
+  ntt_manager:
+    address: "0x3e6554488277b19A6943CB03F78125f255880c9a"  # 源链 manager 合约地址
+    abi_path: "./abi/manager_src.json"  # 源链 manager 合约 ABI 路径
+    method: "transfer"  # 源链 manager 的跨链方法名
+
+dst:
+  name: "base"  # 目标链名称
+  rpc: "https://base-sepolia.drpc.org"  # 目标链 RPC 地址
+  wormhole_chain_id: 10004  # 目标链 Wormhole chain id
+  transceivers:    # 目标链 transceiver 合约列表，用于接收跨链消息。在NTT manager合约的getThreshold方法查看需要配置几个transceiver合约,getTransceivers方法查看transceiver合约地址
+    - address: "0x1d22faa5B532CEb4fbc67Fe02dEDCF1bF57D4F2D"  # 目标链 transceiver 合约地址，如果是代理合约，需填写代理合约地址，但是abi_path和method要填写实现合约的信息
+      abi_path: "./abi/transceiver_a.json"  # transceiver ABI 路径
+      method: "receiveMessage"  # transceiver 的接收方法名
+      name: "transceiver-A"
+  ntt_manager:
+    address: "0x3e6554488277b19A6943CB03F78125f255880c9a"  # 目标链 manager 合约地址
+    abi_path: "./abi/manager_dst.json"  # 目标链 manager 合约 ABI 路径
+    method: "transceiverAttestedToMessage"  # 查询 attestation 状态的方法名
+
+token:
+  symbol: "RLUSD"  # 代币符号
+  address_on_src: "0xe101FB315a64cDa9944E570a7bFfaFE60b994b1D"  # 源链 token 合约地址
+  decimals: 18  # 代币精度
+  approve_required: true  # 是否需要提前 approve manager 合约
+
+transfer_params:  # 虫洞标准ntt manager模板，如果不一样需要同步修改代码文件里的“发起跨链交易所需参数params“
+  amount: "0.1"  # 跨链转账金额（字符串，脚本自动转换为最小单位）
+  recipient: "0x9CAEE92287CAD179541bc7C44874b485b9AaC88b"  # 目标链接收地址
+  recipient_wormhole_chain: 1004  # 目标链 Wormhole chain id
+  refund_address: "0x9CAEE92287CAD179541bc7C44874b485b9AaC88b"  # 未用gas退款地址，null 表示填 0x0...（bytes32）
+  should_queue: false  # 如果有限制，是否排队转账（bool）
+  transceiver_instructions_hex: "0x01000100"  # 收发器的额外指令（hex）
+
+auth:
+  private_key_env: "PRIVATE_KEY"  # 私钥环境变量名（脚本从环境变量读取）
+
+runtime:
+  wormholescan_api_base: "https://api.testnet.wormholescan.io/api/v1"  # Wormholescan API 基础地址
+  vaa_poll_interval_seconds: 0.1  # VAA 轮询间隔（秒）
+  vaa_alert_interval_seconds: 60  # VAA 告警间隔（秒）
+  vaa_alert_timeout_seconds: 600  # VAA 告警超时（秒）
+
+logging:
+  log_level: "INFO"  # 日志级别（DEBUG/INFO/WARNING/ERROR）
+  log_file: "./wormhole.log"  # 日志文件路径
+
+src_tx_hash: ""  # redeem_only 模式下需填写源链 tx hash

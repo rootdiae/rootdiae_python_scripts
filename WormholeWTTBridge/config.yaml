@@ -4,12 +4,12 @@ wtt_method: transferTokens       # transferTokens | transferTokensWithPayload
 src:                              # 源链配置
   rpc: "https://ethereum-sepolia-rpc.publicnode.com"
   name: "ethereum"
-  chain_evm_id: 1002
+  chain_evm_id: 1002      # 虫洞链id，1002代表sepolia测试网
 
 dst:                            # 目标链配置      
   rpc: "https://arbitrum-sepolia.drpc.org"
   name: "arbitrum"
-  chain_evm_id: 1003
+  chain_evm_id: 1003     # 虫洞链id，1003代表arbitrum-sepolia测试网
 
 token:                     # 代币配置 
   address_on_src: "0x7A69434037601DBF509C9a8eaF32d24C3d1a3524"        # 源链代币合约地址
