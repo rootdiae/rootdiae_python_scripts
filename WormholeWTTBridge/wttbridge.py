@@ -329,7 +329,7 @@ def main():
                             parsed_payload = vaa_data["payload"]
                             logger.info(f"找到带payload的VAA: sequence={vaa_data.get('sequence')}, emitterChain={vaa_data.get('emitterChain')}")
                             logger.info(f"VAA 已获取: {vaa[:32]}... (base64)")
-                        break
+                            break
                 
                 if vaa and parsed_payload:
                     # 在获取到VAA后立即进行校验
@@ -344,7 +344,11 @@ def main():
                             logger.error("VAA 金额校验失败")
                             return
                         else:
-                            logger.info(f"VAA金额校验成功: {Decimal(amount)} {token['symbol']}")
+                            # 计算十进制金额（最小单位转正常显示）
+                            token_decimals = token["decimals"]
+                            decimal_amount = Decimal(min_unit_amount) / (10 ** token_decimals)
+                            decimal_amount = decimal_amount.normalize()
+                            logger.info(f"VAA金额校验成功: {decimal_amount} {token['symbol']}")
                         
                         # 校验接收地址
                         if parsed_payload.get("toAddress", "").lower()[-40:] != recipient_on_dst.lower()[-40:]:
