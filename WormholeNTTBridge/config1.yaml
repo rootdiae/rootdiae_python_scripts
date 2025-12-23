@@ -1,20 +1,20 @@
 mode: "redeem_only"       # full_send（发起跨链-查询vaa-目标链执行） | redeem_only（查询vaa-目标链执行） | complete_inbound（已赎回但排队，主动完成入站）
 
 src:
-  name: "Base"  # 源链名称
-  rpc: "https://base-rpc.publicnode.com"  # 源链 RPC 地址
-  wormhole_chain_id: 30  # 源链 Wormhole chain id
-  is_poa: true  # Base是POA链，需要中间件
+  name: "BNB Smart Chain"  # 源链名称（用于日志和 Wormhole chain id 映射）
+  rpc: "https://bsc-rpc.publicnode.com"  # 源链 RPC 地址
+  wormhole_chain_id: 4  # 源链 Wormhole chain id
+  is_poa: true  # 新增：BSC是POA链，需要中间件
   ntt_manager:
     address: "0xC5103069C3a0b52cddea0f565a4589d54452114C"  # 源链 manager 合约地址（如果是代理，该合约地址为代理地址，ABI为实现合约ABI）
     abi_path: "./abi/manager_src.json"  # 源链 manager 合约 ABI 路径
     method: "transfer"  # 源链 manager 的跨链方法名
 
 dst:
-  name: "BNB Smart Chain"  # 目标链名称（用于日志和 Wormhole chain id 映射）
-  rpc: "https://bsc-rpc.publicnode.com"  # 目标链 RPC 地址
-  wormhole_chain_id: 4  # 目标链 Wormhole chain id
-  is_poa: true  # BSC是POA链，需要中间件
+  name: "Base"  # 目标链名称
+  rpc: "https://base-rpc.publicnode.com"  # 目标链 RPC 地址
+  wormhole_chain_id: 30  # 目标链 Wormhole chain id
+  is_poa: true  # 新增：Base是POA链，需要中间件
   transceivers:    # 目标链 transceiver 合约列表，在manager合约的getThreshold方法中返回需要几个transceiver的attestation
     - index: 0  # transceiver 索引，用于区分多个transceiver，在manager合约的getTransceivers方法中返回，按顺序编号（0开始）
       address: "0x65739e922B1879814f2962cbfff01950075397A6"  # 目标链 transceiver 合约地址
@@ -44,9 +44,9 @@ token:
   approve_required: true  # 是否需要提前 approve manager 合约，true表示需要，授权数量为跨链转账金额，false表示不需要
 
 transfer_params:  
-  amount: "1"  # 跨链转账金额（字符串，脚本自动转换为最小单位）
+  amount: "0.5"  # 跨链转账金额（字符串，脚本自动转换为最小单位）
   recipient: "0x9caee92287cad179541bc7c44874b485b9aac88b"  # 目标链接收地址
-  recipient_wormhole_chain: 4  # 目标链 Wormhole chain id
+  recipient_wormhole_chain: 30  # 目标链 Wormhole chain id
   refund_address: "0x9CAEE92287CAD179541bc7C44874b485b9AaC88b"  # 未用gas退款地址，null 表示填 0x0...（bytes32）
   should_queue: false  # 如果有限制，是否排队转账（bool）
   transceiver_instructions_hex: "0x01000101"  # 收发器的额外指令（hex）
@@ -65,7 +65,7 @@ logging:
   log_file: "./wormhole.log"  # 日志文件路径
 
 # redeem_only模式下必须填写源链 tx hash，complete_inbound模式下可选填写
-src_tx_hash: "0xb46536ee647e1a23d449756aa29954c0e87fd39bf1d580edcbd8e56f17757dc7"  
+src_tx_hash: "0x65bccf55ebc96e9eaf741d7089354c4225b0de91baeaeff5fd3a69eb4192a769"  
 
 # complete_inbound模式下可选填写digest参数（源链哈希和digest二选一填）
 digest: ""  #源链交易event logs里topic0=0x3e6ae56314c6da8b461d872f41c6d0bb69317b9d0232805aaccfa45df1a16fa0的TransferSent事件的topic1
