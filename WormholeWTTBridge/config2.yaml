@@ -1,20 +1,26 @@
-mode: redeem_only                  # full_send（发起跨链-查询vaa-目标链执行） | redeem_only（查询vaa-目标链执行）
-wtt_method: transferTokens       # transferTokens | transferTokensWithPayload
+# 正式网WOM代币从BSC跨链到ARB
 
-dst:                              # 源链配置
-  rpc: "https://ethereum-sepolia-rpc.publicnode.com"
-  name: "ethereum"
-  chain_evm_id: 1002
+mode: full_send                  # full_send（发起跨链-查询vaa-目标链执行） | redeem_only（查询vaa-目标链执行）
+wtt_method: transferTokensWithPayload       # transferTokens | transferTokensWithPayload
 
-src:                            # 目标链配置      
-  rpc: "https://arbitrum-sepolia.drpc.org"
-  name: "arbitrum"
-  chain_evm_id: 1003
+src:                              # 源链配置
+  rpc: "https://bsc-rpc.publicnode.com"
+  name: "BNB Smart Chain"
+  wormhole_evm_id: 4      # 虫洞链id
+  is_poa: true  #POA链(BSC、Moonbeam、Evmos、XRPL-EVM、HyperEVM)，需要中间件
+token_bridge_contract_src: "0xB6F6D86a8f9879A9c87f643768d9efc38c1Da6E7"    # 源链Token Bridge合约地址
+
+dst:                            # 目标链配置      
+  rpc: "https://arbitrum.drpc.org"
+  name: "Arbitrum"
+  wormhole_evm_id: 23     # 虫洞链id
+  is_poa: false  # POA链，需要中间件
+token_bridge_contract_dst: "0x0b2402144Bb366A632D14B83F244D2e0e21bD39c"   # 目标链Token Bridge合约地址  
 
 token:                     # 代币配置 
-  address_on_src: "0x7ba1888061E4AF2C0ba504E7d069022F71dBF862"        # 源链代币合约地址
+  address_on_src: "0xAD6742A35fB341A9Cc6ad674738Dd8da98b94Fb1"        # 源链代币合约地址
   decimals: 18
-  symbol: "TALK"
+  symbol: "WOM"
   approve_required: true          # 是否需要先调用approve，true表示需要授权，授权数量为代币跨链数量，false表示不需要授权
 
 recipient_on_dst: "0x9CAEE92287CAD179541bc7C44874b485b9AaC88b"       # 目标链接收地址（bytes32格式）
@@ -22,13 +28,10 @@ amount: "1"                   # 跨链代币数量，十进制字符串
 
 private_key_env: "PRIVATE_KEY"   # .env文件中的变量名
 
-wormholescan_api_base: "https://api.testnet.wormholescan.io/api/v1" #正式网"https://api.wormholescan.io/api/v1"    # wormholescan API
+wormholescan_api_base: "https://api.wormholescan.io/api/v1"    # wormholescan API
 vaa_poll_interval_seconds: 0.1        # VAA轮询间隔（秒）   
 vaa_alert_interval_seconds: 60    # VAA告警间隔（秒）
 vaa_alert_timeout_seconds: 600    # VAA告警超时（秒），超过该时间未获取到VAA则在日志里打印警告       
-
-token_bridge_contract_src: "0xC7A204bDBFe983FCD8d8E61D02b475D4073fF97e"    # 源链Token Bridge合约地址
-token_bridge_contract_dst: "0xDB5492265f6038831E89f495670FF909aDe94bd9"   # 目标链Token Bridge合约地址
 
 log_level: "INFO"
 
@@ -36,4 +39,4 @@ log_level: "INFO"
 payload: ""
 
 # redeem_only模式下需要指定源链跨链交易哈希
-src_tx_hash: "0x4f84bb5bb79ea16d339d5d279918a01219706a0341fe7c4c8f05eab048b5201b"
+src_tx_hash: ""

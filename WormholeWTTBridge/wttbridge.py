@@ -1,6 +1,6 @@
 import os
 import time
-import yaml
+import yaml   #安的不是这个库，是pip install pyyaml -i https://pypi.tuna.tsinghua.edu.cn/simple
 import json
 import base64 
 import logging
@@ -9,10 +9,7 @@ from decimal import Decimal, getcontext
 from web3.exceptions import ContractLogicError
 from web3 import Web3
 from dotenv import load_dotenv
-
-# transferTokens可以跨链代币，eth to arb和arb to eth都可以正常跨链
-# transferTokensWithPayload没有找到测试网代币，需要正式网再小额测试
-
+from web3.middleware import ExtraDataToPOAMiddleware
 
 # ========== ABI 常量 ==========
 TOKENBRIDGE_ABI = [
@@ -77,24 +74,22 @@ ERC20_ABI = [
         "name": "balanceOf",
         "outputs": [{"name": "", "type": "uint256"}],
         "type": "function"
+    },
+    {
+    "constant": True,
+    "inputs": [
+        {"name": "owner", "type": "address"},
+        {"name": "spender", "type": "address"}
+    ],
+    "name": "allowance",
+    "outputs": [{"name": "", "type": "uint256"}],
+    "type": "function"
     }
 ]
 
-# ========== Wormhole chain id 映射 ==========
-WORMHOLE_CHAIN_ID_MAP = {
-    "ethereum": 10002,
-    "bsc": 4,
-    "polygon": 5,
-    "avalanche": 6,
-    "arbitrum": 10003,
-    "optimism": 10005,
-    "base": 10004,
-    # ...可补充更多
-}
-
 # ========== 配置与日志 ==========
 def load_config():
-    with open("WormholeWTTBridge/config2.yaml", "r") as f:
+    with open("config1.yaml", "r") as f:
         return yaml.safe_load(f)
 
 def setup_logger(log_level="INFO"):
@@ -129,54 +124,89 @@ def sleep_with_log(seconds, logger):
     time.sleep(seconds)
 
 # ========== Web3 初始化 ==========
-def init_web3(rpc_url):
+def init_web3(rpc_url, enable_poa_middleware=False):  # 新增参数：是否启用POA中间件
+    """
+    初始化web3对象，连接指定RPC，连接失败抛出异常
+    """
     w3 = Web3(Web3.HTTPProvider(rpc_url, request_kwargs={"timeout": 30}))
+    
+    # ========== 新增：根据开关动态注入POA中间件 ==========
+    if enable_poa_middleware:
+        # 仅POA链注入中间件，禁用extraData长度校验
+        # layer=0表示最内层中间件，优先处理区块数据解析
+        w3.middleware_onion.inject(ExtraDataToPOAMiddleware, layer=0)
+        logging.getLogger("wormhole").debug(f"已为RPC {rpc_url} 注入POA中间件")
+    
     if not w3.is_connected():
-        print("RPC连接失败，请检查RPC地址")
-        return None
+        raise RuntimeError(f"Web3 连接失败: {rpc_url}")
     return w3
 
 # ========== 新增：EIP-1559 Gas参数构建工具 ==========
 def build_tx_with_gas_params(w3, tx_dict, logger):
     """
-    构建交易参数，优先使用EIP-1559格式（maxFeePerGas和maxPriorityFeePerGas），
-    如果失败则回退到传统gasPrice格式。
-    :param w3: Web3对象
-    :param tx_dict: 交易参数字典（from, nonce, gas, value等）
-    :param logger: 日志对象
-    :return: 完整的交易参数字典
+    构建交易参数：
+    - 非 EIP-1559 链：使用 gasPrice
+    - EIP-1559 链：强制使用 maxFeePerGas / maxPriorityFeePerGas
+      priority fee 为 0 时使用兜底值，而不是回退
     """
-    tx = tx_dict.copy()
-    chain_id = w3.eth.chain_id
-    tx["chainId"] = chain_id
 
-    # 优先尝试EIP-1559格式
+    tx = tx_dict.copy()
+    tx["chainId"] = w3.eth.chain_id
+
+    FALLBACK_PRIORITY_FEE = 1000000      # 0.001 gwei
+    BASE_FEE_MULTIPLIER = 1.2
+
     try:
-        # 获取最新区块的baseFeePerGas
-        fee_data = w3.eth.fee_history(1, 'latest')
-        base_fee = int(fee_data['baseFeePerGas'][-1])
-        # 获取最大优先费
-        max_priority_fee = int(w3.eth.max_priority_fee)
-        # 计算最大总费用（基础费用的1.2倍）
-        max_fee_per_gas = int(base_fee * 1.2)
-        # 优先费不能过高
-        if max_priority_fee > max_fee_per_gas * 0.5:
-            max_priority_fee = max_fee_per_gas // 10
-        tx["maxFeePerGas"] = max_fee_per_gas
-        tx["maxPriorityFeePerGas"] = max_priority_fee
-        logger.info(f"使用EIP-1559参数构建交易: maxFeePerGas={max_fee_per_gas}, maxPriorityFeePerGas={max_priority_fee}")
-        return tx
-    except Exception as e:
-        logger.warning(f"EIP-1559参数获取失败: {e}，尝试使用传统gasPrice参数")
-        # 回退到传统gasPrice
-        try:
+        # ---------- 1. 探测 baseFee ----------
+        latest_block = w3.eth.get_block("latest")
+        base_fee = latest_block.get("baseFeePerGas", 0)
+
+        # ---------- 2. 非 EIP-1559 链 ----------
+        if base_fee is None or base_fee == 0:
+            logger.info("检测到非 EIP-1559 链，使用 gasPrice")
+
             gas_price = w3.eth.gas_price
             tx["gasPrice"] = gas_price
-            logger.info(f"使用传统gasPrice构建交易: gasPrice={gas_price}")
+
+            # 清理 EIP-1559 字段
+            tx.pop("maxFeePerGas", None)
+            tx.pop("maxPriorityFeePerGas", None)
+
+            logger.info(f"gasPrice = {Web3.from_wei(gas_price, 'gwei')} gwei")
             return tx
-        except Exception as ee:
-            logger.error(f"获取gasPrice失败: {ee}，无法构建交易参数")
-            raise
+
+        # ---------- 3. EIP-1559 链 ----------
+        try:
+            priority_fee = int(w3.eth.max_priority_fee)
+        except Exception:
+            priority_fee = 0
+
+        if priority_fee <= 0:
+            logger.warning(
+                f"RPC 返回 maxPriorityFeePerGas={priority_fee}，使用兜底值 {FALLBACK_PRIORITY_FEE}"
+            )
+            priority_fee = FALLBACK_PRIORITY_FEE
+
+        max_fee = int(base_fee * BASE_FEE_MULTIPLIER) + priority_fee
+
+        tx["maxFeePerGas"] = max_fee
+        tx["maxPriorityFeePerGas"] = priority_fee
+
+        # 清理 legacy 字段
+        tx.pop("gasPrice", None)
+
+        logger.info(
+            "使用 EIP-1559 参数构建交易: "
+            f"baseFee={Web3.from_wei(base_fee, 'gwei')} gwei, "
+            f"maxFeePerGas={Web3.from_wei(max_fee, 'gwei')} gwei, "
+            f"maxPriorityFeePerGas={Web3.from_wei(priority_fee, 'gwei')} gwei"
+        )
+
+        return tx
+
+    except Exception as e:
+        logger.error(f"构建 gas 参数失败: {e}")
+        raise
 
 # ========== 主流程 ==========
 def main():
@@ -202,99 +232,101 @@ def main():
     token_bridge_contract_dst = config["token_bridge_contract_dst"]
     payload_hex = config.get("payload", "")
     src_tx_hash = config.get("src_tx_hash", "")
+    wormhole_dst_chain_id = dst["wormhole_evm_id"]
 
-    # 2. 初始化web3
-    w3_src = init_web3(src["rpc"])
-    w3_dst = init_web3(dst["rpc"])
+    # 2. 初始化web3（传入is_poa参数），默认False（兼容未配置的情况）
+    w3_src = init_web3(src["rpc"], enable_poa_middleware=src.get("is_poa", False))
+    w3_dst = init_web3(dst["rpc"], enable_poa_middleware=dst.get("is_poa", False))
     account = w3_src.eth.account.from_key(private_key)
     logger.info(f"使用账户: {account.address}")
-
-    # 3. 检查余额
     erc20 = w3_src.eth.contract(address=checksum(token["address_on_src"]), abi=ERC20_ABI)
     min_unit_amount = amount_to_min_unit(amount, token["decimals"])
-    balance = erc20.functions.balanceOf(account.address).call()
-    
-    # 增加详细日志：当前余额和跨链代币数量
-    human_balance = Decimal(balance) / Decimal(10 ** token["decimals"])
-    human_amount = Decimal(amount)
-    logger.info(f"当前余额: {human_balance} {token['symbol']}")
-    logger.info(f"跨链代币数量: {human_amount} {token['symbol']}")
-    
-    if balance < min_unit_amount:
-        logger.error(f"代币余额不足: {balance} < {min_unit_amount}")
-        return
 
-    # 4. 授权 approve
-    if token.get("approve_required", True) and mode == "full_send":
-        logger.info("开始授权代币...")
-        nonce = w3_src.eth.get_transaction_count(account.address)
-        approve_tx_dict = {
-            "from": account.address,
-            "nonce": nonce,
-            "gas": 100000,
-            "value": 0
-        }
-        # 构建交易参数（优先EIP-1559，回退gasPrice）
-        approve_tx_dict = build_tx_with_gas_params(w3_src, approve_tx_dict, logger)
-        tx = erc20.functions.approve(token_bridge_contract_src, min_unit_amount).build_transaction(approve_tx_dict)
-        signed = w3_src.eth.account.sign_transaction(tx, private_key)
-        tx_hash = w3_src.eth.send_raw_transaction(signed.raw_transaction)
-        logger.info(f"授权交易已发送: {tx_hash.hex()}")
-        w3_src.eth.wait_for_transaction_receipt(tx_hash)
-        logger.info("授权交易已上链")
-
-    # 5. full_send模式发起跨链
+    # 3. 检查余额
     if mode == "full_send":
-        logger.info("发起跨链转账...")
-        tb = w3_src.eth.contract(address=checksum(token_bridge_contract_src), abi=TOKENBRIDGE_ABI)
-        recipient_bytes32 = to_bytes32(recipient_on_dst)
-        wormhole_dst_chain_id = WORMHOLE_CHAIN_ID_MAP[dst["name"]]
+        balance = erc20.functions.balanceOf(account.address).call()
         
-        # 增加详细日志
-        logger.info(f"跨链目标地址: {recipient_on_dst}")
-        logger.info(f"目标链名称: {dst['name']}")
-        logger.info(f"虫洞目标链ID: {wormhole_dst_chain_id}")
-        logger.info(f"跨链代币数量: {amount} {token['symbol']}")
+        # 日志：当前余额和跨链代币数量
+        human_balance = Decimal(balance) / Decimal(10 ** token["decimals"])
+        human_amount = Decimal(amount)
+        logger.info(f"当前余额: {human_balance} {token['symbol']}")
+        logger.info(f"跨链代币数量: {human_amount} {token['symbol']}")
         
-        nonce = w3_src.eth.get_transaction_count(account.address)
-        if wtt_method == "transferTokens":
-            func = tb.functions.transferTokens(
-                checksum(token["address_on_src"]),
-                min_unit_amount,
-                wormhole_dst_chain_id,
-                recipient_bytes32,
-                0,  # arbiterFee
-                nonce
-            )
-        else:
-            # 支持payload从配置文件输入
-            if payload_hex.startswith("0x"):
-                payload_bytes = bytes.fromhex(payload_hex[2:])
+        if balance < min_unit_amount:
+            logger.error(f"代币余额不足: {balance} < {min_unit_amount}")
+            return
+
+        # 4. 授权 approve
+        if token.get("approve_required", True) and mode == "full_send":
+            allowance = erc20.functions.allowance(account.address, checksum(token_bridge_contract_src)).call()
+            if allowance < min_unit_amount:
+                logger.info("开始授权代币...")
+                nonce = w3_src.eth.get_transaction_count(account.address)
+                approve_tx_dict = {
+                    "from": account.address,
+                    "nonce": nonce,
+                    "gas": 100000,
+                    "value": 0
+                }
+                # 构建交易参数（优先EIP-1559，回退gasPrice）
+                approve_tx_dict = build_tx_with_gas_params(w3_src, approve_tx_dict, logger)
+                tx = erc20.functions.approve(token_bridge_contract_src, min_unit_amount).build_transaction(approve_tx_dict)
+                signed = w3_src.eth.account.sign_transaction(tx, private_key)
+                tx_hash = w3_src.eth.send_raw_transaction(signed.raw_transaction)
+                logger.info(f"授权交易已发送: {tx_hash.hex()}")
+                w3_src.eth.wait_for_transaction_receipt(tx_hash)
+                logger.info("授权交易已上链")
+
+        # 5. full_send模式发起跨链
+            logger.info("发起跨链转账...")
+            tb = w3_src.eth.contract(address=checksum(token_bridge_contract_src), abi=TOKENBRIDGE_ABI)
+            recipient_bytes32 = to_bytes32(recipient_on_dst)
+            
+            # 增加详细日志
+            logger.info(f"跨链目标地址: {recipient_on_dst}")
+            logger.info(f"目标链名称: {dst['name']}")
+            logger.info(f"虫洞目标链ID: {wormhole_dst_chain_id}")
+            logger.info(f"跨链代币数量: {amount} {token['symbol']}")
+            
+            nonce = w3_src.eth.get_transaction_count(account.address)
+            if wtt_method == "transferTokens":
+                func = tb.functions.transferTokens(
+                    checksum(token["address_on_src"]),
+                    min_unit_amount,
+                    wormhole_dst_chain_id,
+                    recipient_bytes32,
+                    0,  # arbiterFee
+                    nonce
+                )
             else:
-                payload_bytes = b''
-            func = tb.functions.transferTokensWithPayload(
-                checksum(token["address_on_src"]),
-                min_unit_amount,
-                wormhole_dst_chain_id,
-                recipient_bytes32,
-                nonce,
-                payload_bytes
-            )
-        tx_dict = {
-            "from": account.address,
-            "nonce": nonce,
-            "gas": 500000,
-            "value": 0
-        }
-        # 构建交易参数（优先EIP-1559，回退gasPrice）
-        tx_dict = build_tx_with_gas_params(w3_src, tx_dict, logger)
-        tx = func.build_transaction(tx_dict)
-        signed = w3_src.eth.account.sign_transaction(tx, private_key)
-        tx_hash = w3_src.eth.send_raw_transaction(signed.raw_transaction)
-        logger.info(f"跨链交易已发送: {tx_hash.hex()}")
-        receipt = w3_src.eth.wait_for_transaction_receipt(tx_hash)
-        logger.info(f"跨链交易已上链: {receipt.transactionHash.hex()}")
-        src_tx_hash = tx_hash.hex()
+                # 支持payload从配置文件输入
+                if payload_hex.startswith("0x"):
+                    payload_bytes = bytes.fromhex(payload_hex[2:])
+                else:
+                    payload_bytes = b''
+                func = tb.functions.transferTokensWithPayload(
+                    checksum(token["address_on_src"]),
+                    min_unit_amount,
+                    wormhole_dst_chain_id,
+                    recipient_bytes32,
+                    nonce,
+                    payload_bytes
+                )
+            tx_dict = {
+                "from": account.address,
+                "nonce": nonce,
+                "gas": 500000,
+                "value": 0
+            }
+            # 构建交易参数（优先EIP-1559，回退gasPrice）
+            tx_dict = build_tx_with_gas_params(w3_src, tx_dict, logger)
+            tx = func.build_transaction(tx_dict)
+            signed = w3_src.eth.account.sign_transaction(tx, private_key)
+            tx_hash = w3_src.eth.send_raw_transaction(signed.raw_transaction)
+            logger.info(f"跨链交易已发送: {tx_hash.hex()}")
+            receipt = w3_src.eth.wait_for_transaction_receipt(tx_hash)
+            logger.info(f"跨链交易已上链: {receipt.transactionHash.hex()}")
+            src_tx_hash = tx_hash.hex()
     else:
         # redeem_only模式下，src_tx_hash必须从配置文件读取
         if not src_tx_hash:
@@ -341,7 +373,7 @@ def main():
                         scale = 10 ** (token["decimals"] - 8)
                         reconstructed_amount = normalized_amount * scale
                         if str(reconstructed_amount) != str(min_unit_amount):
-                            logger.error("VAA 金额校验失败")
+                            logger.error(f"VAA 金额校验失败: 解析值 {reconstructed_amount} vs 预期值 {min_unit_amount}")
                             return
                         else:
                             # 计算十进制金额（最小单位转正常显示）
@@ -352,14 +384,14 @@ def main():
                         
                         # 校验接收地址
                         if parsed_payload.get("toAddress", "").lower()[-40:] != recipient_on_dst.lower()[-40:]:
-                            logger.error("VAA 接收地址校验失败")
+                            logger.error(f"VAA 接收地址校验失败：解析值 {parsed_payload.get('toAddress', '')} vs 预期值 {recipient_on_dst}")
                             return
                         else:
                             logger.info(f"VAA地址校验成功: {parsed_payload.get('toAddress', '')}")
                         
                         # 校验目标链ID
-                        if int(parsed_payload.get("toChain")) != WORMHOLE_CHAIN_ID_MAP[dst["name"]]:
-                            logger.error("VAA 目标链ID校验失败")
+                        if int(parsed_payload.get("toChain")) != wormhole_dst_chain_id:
+                            logger.error(f"VAA 目标链ID校验失败：解析值 {parsed_payload.get('toChain')} vs 预期值 {wormhole_dst_chain_id}")
                             return
                         else:
                             logger.info(f"VAA目标链ID校验成功: {parsed_payload.get('toChain')}")
@@ -373,7 +405,10 @@ def main():
                     # 没有找到带payload的VAA，继续轮询
                     elapsed = int(time.time() - start_time)
                     if elapsed - last_alert_time >= vaa_alert_interval and elapsed >= vaa_alert_timeout:
-                        logger.warning(f"等待带payload的VAA已超过 {elapsed} 秒...")
+                        minutes = elapsed // 60  # 整除60得到分钟数
+                        seconds = elapsed % 60   # 取余60得到剩余秒数
+                    if elapsed - last_alert_time >= vaa_alert_interval and elapsed >= vaa_alert_timeout:
+                        logger.warning(f"等待带payload的VAA已超过 {minutes} 分 {seconds} 秒...")
                         last_alert_time = elapsed
                     sleep_with_log(vaa_poll_interval, logger)
             else:
@@ -462,7 +497,7 @@ def main():
     else:
         logger.info("VAA尚未在目标链执行，将进行 claim 操作")
 
-    # 9. 目标链claim（改进版）
+    # 9. 目标链claim
     logger.info("在目标链执行 claim 操作...")
     # 初始化目标链的Token Bridge合约实例
     tb_dst = w3_dst.eth.contract(
