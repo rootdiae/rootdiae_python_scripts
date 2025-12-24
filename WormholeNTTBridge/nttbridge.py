@@ -84,70 +84,69 @@ def init_web3(rpc_url, enable_poa_middleware=False):  # 新增参数：是否启
 
 def build_tx_with_gas_params(w3, tx_dict, logger):
     """
-    构建交易参数，优先使用EIP-1559格式（maxFeePerGas和maxPriorityFeePerGas），
-    如果失败则回退到传统gasPrice格式。
-    
-    新增逻辑：
-    1. 当baseFeePerGas为0时，EIP-1559参数无效，回退到gasPrice模式
-    2. 当maxFeePerGas或maxPriorityFeePerGas为0时，EIP-1559参数无效，回退到gasPrice模式
-    3. 回退到gasPrice模式时，清除EIP-1559相关参数，避免冲突
+    构建交易参数：
+    - 非 EIP-1559 链：使用 gasPrice
+    - EIP-1559 链：强制使用 maxFeePerGas / maxPriorityFeePerGas
+      priority fee 为 0 时使用兜底值，而不是回退
     """
+
     tx = tx_dict.copy()
-    chain_id = w3.eth.chain_id
-    tx["chainId"] = chain_id
+    tx["chainId"] = w3.eth.chain_id
+
+    FALLBACK_PRIORITY_FEE = 1000000      # 0.001 gwei
+    BASE_FEE_MULTIPLIER = 1.2
+
     try:
-        # 获取最新区块的baseFeePerGas
-        fee_data = w3.eth.fee_history(1, 'latest')
-        base_fee = int(fee_data['baseFeePerGas'][-1])
-        
-        # ========== 新增检查：baseFeePerGas为0表示EIP-1559不支持或链未启用 ==========
-        if base_fee == 0:
-            logger.warning(f"baseFeePerGas为{base_fee}，该链可能不支持EIP-1559")
-            raise ValueError("baseFeePerGas为零，回退到gasPrice模式")
-        
-        # 获取最大优先费
-        max_priority_fee = int(w3.eth.max_priority_fee)
-        
-        # 计算最大总费用（基础费用的1.2倍）
-        max_fee_per_gas = int(base_fee * 1.2)
-        
-        # ========== 新增检查：maxFeePerGas为0时回退 ==========
-        if max_fee_per_gas == 0:
-            logger.warning(f"计算出的maxFeePerGas为{max_fee_per_gas}，回退到gasPrice模式")
-            raise ValueError("maxFeePerGas is zero, fallback to gasPrice mode")
-        
-        # 优先费不能过高
-        if max_priority_fee > max_fee_per_gas * 0.5:
-            max_priority_fee = max_fee_per_gas // 10
-        
-        # ========== 新增检查：maxPriorityFeePerGas为0时回退 ==========
-        if max_priority_fee == 0:
-            logger.warning(f"计算出的maxPriorityFeePerGas为{max_priority_fee}，回退到gasPrice模式")
-            raise ValueError("maxPriorityFeePerGas is zero, fallback to gasPrice mode")
-        
-        # 设置EIP-1559参数，并确保清除可能存在的gasPrice参数
-        tx["maxFeePerGas"] = max_fee_per_gas
-        tx["maxPriorityFeePerGas"] = max_priority_fee
-        if "gasPrice" in tx:
-            del tx["gasPrice"]  # 移除gasPrice，避免与EIP-1559参数冲突
-        logger.info(f"使用EIP-1559参数构建交易: maxFeePerGas={Web3.from_wei(max_fee_per_gas, 'gwei')}gwei, maxPriorityFeePerGas={Web3.from_wei(max_priority_fee, 'gwei')}gwei")
-        return tx
-    except Exception as e:
-        # 捕获所有异常（包括我们主动抛出的ValueError）并回退到传统gasPrice模式
-        logger.warning(f"EIP-1559参数无效或获取失败: {e}，尝试使用传统gasPrice参数")
-        try:
+        # ---------- 1. 探测 baseFee ----------
+        latest_block = w3.eth.get_block("latest")
+        base_fee = latest_block.get("baseFeePerGas", 0)
+
+        # ---------- 2. 非 EIP-1559 链 ----------
+        if base_fee is None or base_fee == 0:
+            logger.info("检测到非 EIP-1559 链，使用 gasPrice")
+
             gas_price = w3.eth.gas_price
             tx["gasPrice"] = gas_price
-            # ========== 新增：回退到gasPrice模式时，清除所有EIP-1559参数 ==========
-            if "maxFeePerGas" in tx:
-                del tx["maxFeePerGas"]
-            if "maxPriorityFeePerGas" in tx:
-                del tx["maxPriorityFeePerGas"]
-            logger.info(f"使用传统gasPrice构建交易: gasPrice={gas_price}")
+
+            # 清理 EIP-1559 字段
+            tx.pop("maxFeePerGas", None)
+            tx.pop("maxPriorityFeePerGas", None)
+
+            logger.info(f"gasPrice = {Web3.from_wei(gas_price, 'gwei')} gwei")
             return tx
-        except Exception as ee:
-            logger.error(f"获取gasPrice失败: {ee}，无法构建交易参数")
-            raise
+
+        # ---------- 3. EIP-1559 链 ----------
+        try:
+            priority_fee = int(w3.eth.max_priority_fee)
+        except Exception:
+            priority_fee = 0
+
+        if priority_fee <= 0:
+            logger.warning(
+                f"RPC 返回 maxPriorityFeePerGas={priority_fee}，使用兜底值 {FALLBACK_PRIORITY_FEE}"
+            )
+            priority_fee = FALLBACK_PRIORITY_FEE
+
+        max_fee = int(base_fee * BASE_FEE_MULTIPLIER) + priority_fee
+
+        tx["maxFeePerGas"] = max_fee
+        tx["maxPriorityFeePerGas"] = priority_fee
+
+        # 清理 legacy 字段
+        tx.pop("gasPrice", None)
+
+        logger.info(
+            "使用 EIP-1559 参数构建交易: "
+            f"baseFee={Web3.from_wei(base_fee, 'gwei')} gwei, "
+            f"maxFeePerGas={Web3.from_wei(max_fee, 'gwei')} gwei, "
+            f"maxPriorityFeePerGas={Web3.from_wei(priority_fee, 'gwei')} gwei"
+        )
+
+        return tx
+
+    except Exception as e:
+        logger.error(f"构建 gas 参数失败: {e}")
+        raise
 
 # ========== 新增：digest获取函数 ==========
 def get_digest_from_src_tx(w3_src, src_tx_hash, logger):
