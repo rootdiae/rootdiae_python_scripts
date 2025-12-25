@@ -22,6 +22,7 @@ token:                     # 代币配置
   decimals: 18
   symbol: "WOM"
   approve_required: true          # 是否需要先调用approve，true表示需要授权，授权数量为代币跨链数量，false表示不需要授权
+  wormhole_declaims: 8 # Wormhole declaims 数量（通常为8），用于校验VAA
 
 recipient_on_dst: "0x9CAEE92287CAD179541bc7C44874b485b9AaC88b"       # 目标链接收地址（bytes32格式）
 amount: "1"                   # 跨链代币数量，十进制字符串

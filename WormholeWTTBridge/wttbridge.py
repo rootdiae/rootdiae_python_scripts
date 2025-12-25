@@ -368,9 +368,8 @@ def main():
                     logger.info("开始解析并校验 VAA...")
                     try:
                         # 校验amount, toAddress, tokenAddress, toChain
-                        # WTT 统一使用 8 decimals 表示金额，需要转换
                         normalized_amount = int(parsed_payload.get("amount"))
-                        scale = 10 ** (token["decimals"] - 8)
+                        scale = 10 ** (token["decimals"] - token["wormhole_declaims"])
                         reconstructed_amount = normalized_amount * scale
                         if str(reconstructed_amount) != str(min_unit_amount):
                             logger.error(f"VAA 金额校验失败: 解析值 {reconstructed_amount} vs 预期值 {min_unit_amount}")
