@@ -42,6 +42,7 @@ token:
   address_on_src: "0xa1832f7F4e534aE557f9B5AB76dE54B1873e498B"  # 源链 token 合约地址
   decimals: 18  # 代币精度
   approve_required: true  # 是否需要提前 approve manager 合约，true表示需要，授权数量为跨链转账金额，false表示不需要
+  wormhole_declaims: 8 # Wormhole declaims 数量（通常为8），用于校验VAA
 
 transfer_params:  
   amount: "0.5"  # 跨链转账金额（字符串，脚本自动转换为最小单位）

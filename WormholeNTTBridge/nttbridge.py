@@ -234,11 +234,11 @@ def poll_and_validate_vaa(config, logger, src_tx_hash, min_unit_amount, recipien
                             logger.error("VAA 校验失败：未找到 trimmedAmount.amount 字段")
                             return None, None
                         trimmed_decimals = trimmed_amount.get("decimals")
-                        if trimmed_decimals != 8:
-                            logger.error(f"VAA 校验失败：trimmedAmount.decimals 不是8，实际为 {trimmed_decimals}")
+                        if trimmed_decimals != token["wormhole_declaims"]:
+                            logger.error(f"VAA 校验失败：trimmedAmount.decimals 不是{token['wormhole_declaims']}，实际为 {trimmed_decimals}")
                             return None, None
                         normalized_amount = int(amount_str)
-                        scale = 10 ** (token["decimals"] - 8)
+                        scale = 10 ** (token["decimals"] - token["wormhole_declaims"])
                         reconstructed_amount = normalized_amount * scale
                         if str(reconstructed_amount) != str(min_unit_amount):
                             logger.error(f"VAA 金额校验失败：解析值 {reconstructed_amount} vs 预期值 {min_unit_amount}")
@@ -639,7 +639,7 @@ def main():
         method = getattr(manager.functions, src["ntt_manager"]["method"])
         recipient_bytes32 = to_bytes32(transfer_params["recipient"])
         refund_address_bytes32 = to_bytes32(transfer_params["refund_address"])
-        params = [
+        params = [           # 需要根据实际方法参数调整顺序
             min_unit_amount,
             transfer_params["recipient_wormhole_chain"],
             recipient_bytes32,
