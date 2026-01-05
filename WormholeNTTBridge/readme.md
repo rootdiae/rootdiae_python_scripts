@@ -4,114 +4,159 @@
 虫洞文档：https://wormhole.com/docs/products/token-transfers/native-token-transfers/reference/manager/evm/#completeinboundqueuedtransfer:~:text=OutboundTransfer%20%E5%B7%B2%E5%8F%96%E6%B6%88-,completeInboundQueuedTransfer,-%EF%BC%83
 
 
-# Wormhole NTT Bridge 跨链自动化脚本使用说明
+# Wormhole 跨链转账脚本
 
-## 一、简介
+## 概述
 
-本项目为 Wormhole NTT（Native Token Transfer）跨链自动化脚本，支持 Wormhole 跨链桥的全流程自动化，包括发起跨链、查询 VAA、目标链赎回、入站排队完成等。  
-支持三种模式：`full_send`、`redeem_only`、`complete_inbound`。
+这是一个用于 Wormhole 跨链网络的自动化脚本，支持从 EVM 链向 EVM 链转移 NTT 模式的代币。脚本提供三种操作模式，涵盖从发起跨链到最终完成的完整流程。
 
----
+## 功能特性
 
-## 二、环境准备
+1. **三种操作模式**：
+   - `full_send`: 完整的跨链流程（授权 → 发起跨链 → 监控VAA → 目标链执行）
+   - `redeem_only`: 仅执行目标链的赎回操作（监控VAA → 目标链执行；需要源链交易哈希）
+   - `complete_inbound`: 完成已在目标链排队的转账（目标链已执行但在队列中，主动完成入站）
 
-### 1. 安装依赖
+2. **自动化监控**：
+   - 自动轮询 WormholeScan API 获取 VAA
+   - WebSocket 实时监听目标链事件
+   - 智能判断交易状态，避免重复执行
 
-请确保已安装 Python 3.7+，并安装依赖库：
+3. **容错机制**：
+   - 自动重连失败的 WebSocket 连接
+   - 多节点轮询确保稳定性
+   - 完善的错误处理和日志记录
 
+## 环境要求
 
+### Python 版本
+- Python 3.8+
+
+### 依赖库
 ```bash
-pip install web3 pyyaml python-dotenv requests
+pip install web3 pyyaml requests python-dotenv eth-abi eth-utils websockets
 ```
 
-### 2. 配置私钥
-
-将你的私钥以环境变量方式提供，例如在 `.env` 文件中添加：
-
+### 环境变量
+创建 `.env` 文件或在系统环境变量中设置：
 ```
-PRIVATE_KEY=你的私钥
+PRIVATE_KEY=你的以太坊私钥（0x开头）
 ```
 
-或者在运行前导出环境变量：
+## 配置文件说明
 
-```bash
-export PRIVATE_KEY=你的私钥
-```
-
----
-
-## 三、配置文件说明
+### 主要配置项
 
 请根据实际链和合约信息，编辑 `config.yaml`，主要参数说明如下：
 
 - `mode`: 运行模式，支持 `full_send`、`redeem_only`、`complete_inbound`
-- `src`: 源链信息，包括 RPC、合约地址、ABI 路径等
-- `dst`: 目标链信息，包括 RPC、transceiver 列表、manager 合约等
-- `method`: 合约调用方法名，如 `transfer`、`receiveMessage` 等，需要根据代币项目方部署的合约 ABI 确定。
-- `token`: 跨链代币信息
-- `transfer_params`: 跨链参数（金额、接收地址等）
+- `src`: 源链信息，包括 RPC、合约地址、ABI 路径等，其中`wormhole_chain_id`为虫洞的链ID，具体查看此[文档](https://wormhole.com/docs/products/reference/chain-ids/)
+- `dst`: 目标链信息，包括 RPC、transceiver 列表、manager 合约等,`wss_endpoints`为目标链的 WebSocket 端点列表，用于实时监听事件，必须保证所使用的端点数据及时且准确。`threshold`为目标链manager合约的getThreshold方法中的返回值。
+- `methods`: 合约调用方法名，如 `transfer`、`receiveMessage`、`MessageAttestedTo`等等，都需要根据代币项目方部署的合约 ABI 确定。
+- `token`: 跨链代币信息，其中`wormhole_declaims`，一般情况下为8，可在[虫洞api](https://wormholescan.io/#/developers/wormholescan-doc/api-doc/get-vaas?network=Mainnet)查看他人该代币的跨链交易Responses里的"decimals".
+- `transfer_params`: 跨链参数（金额、接收地址等），full_send模式下，源链发起跨链交易需要注意参数顺序，需要与合约ABI中的方法参数顺序一致。可定位代码文件中“# 需要根据实际方法参数调整顺序”注释处调整。`amount`为实际转移的代币数量，如果是通过executor发起的跨链，此处填写的是源链交易里to Null地址的代币数量，一般是会少千分之一。
 - `auth`: 私钥环境变量名
 - `runtime`: WormholeScan API 相关参数
 - `logging`: 日志配置
-- `src_tx_hash`: redeem_only模式下必须填写源链 tx hash，complete_inbound 选填
+- `src_tx_hash`: redeem_only模式下必须填写源链 tx hash，complete_inbound 模式下可选填
 - `digest`: complete_inbound 模式下可选填（源链哈希和digest二选一填）
 
 **Wormhole chain id**
 具体查看此文档https://wormhole.com/docs/products/reference/chain-ids/
 
 
+## 使用指南
 
----
-
-## 四、运行方式
-
-### 1. full_send 模式（发起跨链-查询vaa-目标链执行）
-
-适用于从头发起一次完整 Wormhole NTT 跨链：
+### 1. 准备阶段
 
 ```bash
-python3 nttbridge.py
+
+# 安装依赖
+pip install -r requirements.txt
+# 或手动安装
+pip install web3 pyyaml requests python-dotenv eth-abi eth-utils websockets
+
+# 设置私钥
+echo "PRIVATE_KEY=你的私钥" > .env
 ```
 
-配置文件需设置 `mode: "full_send"`，其余参数按实际填写。
+### 2. 配置文件设置
 
----
+根据你的需求编辑 `config.yaml`：
 
-### 2. redeem_only 模式（查询vaa-目标链执行）
+**重要参数**：
+- 确认 RPC 和 Websocket 端点可用
+- 检查合约地址正确性，配置文件里的合约地址是代理合约地址，ABI文件是实际执行合约的ABI。
+- 确认ABI文件路径正确
+- 设置正确的跨链参数（金额、接收地址等）
 
-适用于已发起跨链，只需在目标链赎回并完成流程：
+### 3. 运行脚本
 
+#### 模式 1: full_send（完整流程）
 ```bash
-python3 nttbridge.py
+# 修改配置文件 mode: "full_send"
+python nttbridge.py
 ```
+**适用场景**：从头开始执行完整的跨链转账
 
-配置文件需设置 `mode: "redeem_only"`，并填写 `src_tx_hash`。
-
----
-
-### 3. complete_inbound 模式（已赎回但排队，主动完成入站）
-
-适用于目标链已提交赎回但还在排队，需要主动完成入站：
-
+#### 模式 2: redeem_only（仅赎回）
 ```bash
-python3 nttbridge.py
+# 修改配置文件
+# mode: "redeem_only"
+# src_tx_hash: "0x你的源链交易哈希"
+
+python nttbridge.py
 ```
+**适用场景**：已经发起了跨链转账，需要执行目标链的赎回操作
 
-配置文件需设置 `mode: "complete_inbound"`，并填写 `digest`（如已知），或填写 `src_tx_hash` 由脚本自动获取 digest。
+#### 模式 3: complete_inbound（完成入站）
+```bash
+# 修改配置文件
+# mode: "complete_inbound"
+# digest: "你的digest" 或 src_tx_hash: "你的交易哈希"
 
----
+python nttbridge.py
+```
+**适用场景**：VAA 已提交但交易仍在队列中，需要手动完成入站
 
-## 五、日志与排错
+### 4. 监控日志
 
-- 日志文件路径和级别可在 `config.yaml` 的 `logging` 部分配置。
+脚本会生成详细的日志文件 `wormhole.log`，包含：
+- 交易状态
+- VAA 获取进度
+- WebSocket 连接状态
+- 错误信息（如有）
 
+## 注意事项
 
----
+### 1. 私钥安全
+- 私钥仅存储在本地环境变量中
+- 不要将私钥提交到版本控制系统
+- 使用专用钱包进行跨链操作
 
-## 六、常见问题
+### 2. 网络稳定性
+- 确保 RPC 和 WebSocket 端点稳定
+- 建议配置多个备用节点
+- 关注 Gas 价格波动
 
-1. **私钥安全**：请勿将私钥上传或泄露，仅本地 `.env` 文件或环境变量中保存。
-2. **RPC 节点可用性**：确保配置的 RPC 节点可用且同步正常。
-3. **ABI 文件**：请确保 ABI 路径正确，且与合约版本匹配。配置文件里的合约地址是代理合约地址，ABI文件是实际执行合约的ABI。
+### 3. 资金安全
+- 首次使用建议小额测试
+- 确认接收地址正确无误
+- 注意跨链手续费
 
----
+## 高级配置
+
+### 自定义 ABI 文件
+脚本需要以下 ABI 文件：
+- `./abi/manager_src.json`: 源链管理器实际执行合约的完整 ABI
+- `./abi/manager_dst.json`: 目标链管理器实际执行合约的完整 ABI
+- `./abi/transceiver_a.json`: transceiver 实际执行合约的完整 ABI（如有多个transceiver，为确保正确调用，最好每个都配置单独的ABI文件）
+
+请确保这些文件存在且内容正确。
+
+### 日志级别
+修改配置文件中的 `log_level` 获取更多信息：
+- `DEBUG`: 最详细，用于调试
+- `INFO`: 常规运行信息（推荐）
+- `WARNING`: 仅警告和错误
+- `ERROR`: 仅错误信息

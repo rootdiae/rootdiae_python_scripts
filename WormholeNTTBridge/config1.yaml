@@ -1,51 +1,60 @@
-mode: "redeem_only"       # full_send（发起跨链-查询vaa-目标链执行） | redeem_only（查询vaa-目标链执行） | complete_inbound（已赎回但排队，主动完成入站）
+# FOLKS，BSC TO BASE，17s
+
+mode: "full_send"       # full_send（发起跨链-查询vaa-目标链执行） | redeem_only（查询vaa-目标链执行） | complete_inbound（已claim但排队，主动完成入站）
 
 src:
   name: "BNB Smart Chain"  # 源链名称（用于日志和 Wormhole chain id 映射）
   rpc: "https://bsc-rpc.publicnode.com"  # 源链 RPC 地址
   wormhole_chain_id: 4  # 源链 Wormhole chain id
-  is_poa: true  # 新增：BSC是POA链，需要中间件
+  is_poa: true  # POA链(BSC、Moonbeam、Evmos、XRPL-EVM、HyperEVM)，需要中间件
   ntt_manager:
-    address: "0xC5103069C3a0b52cddea0f565a4589d54452114C"  # 源链 manager 合约地址（如果是代理，该合约地址为代理地址，ABI为实现合约ABI）
+    address: "0xd15274c3910600a8246C86a198DE18618Cd47401"  # 源链 manager 合约地址（如果是代理，该合约地址为代理地址，ABI为实现合约ABI）
     abi_path: "./abi/manager_src.json"  # 源链 manager 合约 ABI 路径
     method: "transfer"  # 源链 manager 的跨链方法名
 
 dst:
   name: "Base"  # 目标链名称
   rpc: "https://base-rpc.publicnode.com"  # 目标链 RPC 地址
+  wss_endpoints:        #目标链订阅节点列表
+    - "wss://base-mainnet.g.alchemy.com/v2/3qJGxibEgtvZTBvYvzi3l"
+  #订阅节点
   wormhole_chain_id: 30  # 目标链 Wormhole chain id
-  is_poa: true  # 新增：Base是POA链，需要中间件
+  is_poa: false  # POA链(BSC、Moonbeam、Evmos、XRPL-EVM、HyperEVM)，需要中间件
+  threshold:  1
   transceivers:    # 目标链 transceiver 合约列表，在manager合约的getThreshold方法中返回需要几个transceiver的attestation
     - index: 0  # transceiver 索引，用于区分多个transceiver，在manager合约的getTransceivers方法中返回，按顺序编号（0开始）
-      address: "0x65739e922B1879814f2962cbfff01950075397A6"  # 目标链 transceiver 合约地址
+      address: "0xcEd94Bb2dEAdd11B645b840Ab17F503b93848121"  # 目标链 transceiver 合约地址
       abi_path: "./abi/transceiver_a.json"  # transceiver ABI 路径
-      method: "receiveMessage"  # transceiver 的接收方法名
-      name: "transceiver-A"
+      methods: 
+        receiveMessage: "receiveMessage" # transceiver 的接收方法名
+      name: "transceiver-A" # 自定义名称，用于日志输出
     # 如有多个transceiver，继续添加
-    # - index: 1
-    #   address: "0x..." 
-    #   abi_path: "./abi/transceiver_b.json"
-    #   method: "receiveMessage"
-    #   name: "transceiver-B"
+    #- index: 1 
+      #address: "0xcEd94Bb2dEAdd11B645b840Ab17F503b93848121"  
+      #abi_path: "./abi/transceiver_b.json"  
+      #methods: 
+        #receiveMessage: "receiveMessage" 
+      #name: "transceiver-B"
   ntt_manager:
-    address: "0xC5103069C3a0b52cddea0f565a4589d54452114C"  # 目标链 manager 合约地址
+    address: "0xd15274c3910600a8246C86a198DE18618Cd47401"  # 目标链 manager 合约地址
     abi_path: "./abi/manager_dst.json"  # 目标链 manager 合约 ABI 路径
     methods:
       transceiverAttestedToMessage: "transceiverAttestedToMessage"  # 查询每个transceiver的attestation状态
+      MessageAttestedTo: "MessageAttestedTo"                      # 订阅目标链的消息是否已认证
       isMessageExecuted: "isMessageExecuted"                        # 查询消息是否已执行
       getInboundQueuedTransfer: "getInboundQueuedTransfer"          # 查询排队入站详情
       getInboundLimitParams: "getInboundLimitParams"                # 查询入站速率限制
       completeInboundQueuedTransfer: "completeInboundQueuedTransfer" # 完成排队入站
 
 token:
-  symbol: "BID"  # 代币符号
-  address_on_src: "0xa1832f7F4e534aE557f9B5AB76dE54B1873e498B"  # 源链 token 合约地址
-  decimals: 18  # 代币精度
+  symbol: "FOLKS"  # 代币符号
+  address_on_src: "0xFF7F8F301F7A706E3CfD3D2275f5dc0b9EE8009B"  # 源链 token 合约地址
+  decimals: 6  # 代币精度
   approve_required: true  # 是否需要提前 approve manager 合约，true表示需要，授权数量为跨链转账金额，false表示不需要
-  wormhole_declaims: 8 # Wormhole declaims 数量（通常为8），用于校验VAA
+  wormhole_declaims: 6 # Wormhole declaims 数量（通常为8），用于校验VAA
 
 transfer_params:  
-  amount: "0.5"  # 跨链转账金额（字符串，脚本自动转换为最小单位）
+  amount: "0.001"  # 跨链转账金额（字符串，脚本自动转换为最小单位）
   recipient: "0x9caee92287cad179541bc7c44874b485b9aac88b"  # 目标链接收地址
   recipient_wormhole_chain: 30  # 目标链 Wormhole chain id
   refund_address: "0x9CAEE92287CAD179541bc7C44874b485b9AaC88b"  # 未用gas退款地址，null 表示填 0x0...（bytes32）
@@ -66,7 +75,7 @@ logging:
   log_file: "./wormhole.log"  # 日志文件路径
 
 # redeem_only模式下必须填写源链 tx hash，complete_inbound模式下可选填写
-src_tx_hash: "0x65bccf55ebc96e9eaf741d7089354c4225b0de91baeaeff5fd3a69eb4192a769"  
+src_tx_hash: "0x62515634c4f02d96f1145dd4848f6f2d103827063e2adc465b1ccbeb16864e21"  
 
 # complete_inbound模式下可选填写digest参数（源链哈希和digest二选一填）
 digest: ""  #源链交易event logs里topic0=0x3e6ae56314c6da8b461d872f41c6d0bb69317b9d0232805aaccfa45df1a16fa0的TransferSent事件的topic1
