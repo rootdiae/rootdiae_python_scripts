@@ -136,7 +136,7 @@ text
 
 从跨链流程来看，源链只负责发起交易，只有目标链的ism来验证metadata，所以应该是由目标链ism查到的validator来负责监听源链事件并签名。
 
-但是在运行脚本(get_valiator_signature.py)[https://github.com/rootdiae/rootdiae_python_scripts/blob/main/HyperlaneBridge/get_valiator_signature.py]时，用源链上的validator地址获取到的最新签名出现在了目标链已提交的metadata数据里。
+但是在运行脚本[get_valiator_signature.py](https://github.com/rootdiae/rootdiae_python_scripts/blob/main/HyperlaneBridge/get_valiator_signature.py)时，用源链上的validator地址获取到的最新签名出现在了目标链已提交的metadata数据里。
 
 这个需要去hyperlane的SDK里确认validator是从哪里获取的。
 
