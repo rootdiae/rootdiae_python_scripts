@@ -10,6 +10,10 @@ from web3 import Web3
 from web3.exceptions import ContractLogicError, BadFunctionCallOutput
 from zoneinfo import ZoneInfo
 
+# 飞书SDK导入
+import lark_oapi as lark
+from lark_oapi.api.bitable.v1 import *
+
 # ============================ 1. 日志配置 (核心要求：控制台+文件输出，轮转) ============================
 def setup_logger() -> logging.Logger:
     """配置日志系统，同时输出到控制台和文件，文件按大小轮转"""
@@ -110,12 +114,19 @@ ERC20_SYMBOL_ABI = [
     }
 ]
 
-# 2.4 文件路径配置
+# 2.4 飞书配置
+FEISHU_APP_ID = " "  # 飞书应用凭证APP_ID
+FEISHU_APP_SECRET = " "  # 飞书应用凭证APP_SECRET
+FEISHU_APP_TOKEN = " " # 飞书多维表格
+FEISHU_TABLE_ID = " "  # 飞书多维表格ID
+FEISHU_RETRY_TIMES = 3  # 飞书表格更新请求重试次数
+
+# 2.5 文件路径配置
 PROCESSED_BLOCK_FILE = "processed_block.json"
-POOL_EVENTS_FILE = "pool_events.json"
+POOL_MAPPING_FILE = "pool_mapping.json"  # 新增：本地映射表文件
 PENDING_POOLS_FILE = "pending_pools.json"
 
-# 2.5 时区配置
+# 2.6 时区配置
 BEIJING_TZ = ZoneInfo("Asia/Shanghai")
 ZERO_ADDRESS = "0x0000000000000000000000000000000000000000".lower()
 
@@ -330,6 +341,100 @@ def get_token_symbol(token_address: str) -> str:
     except Exception as e:
         logger.error(f"获取代币 {token_address} symbol失败: {str(e)}", exc_info=True)
         return "未知代币"
+
+# ============================ 3.5 飞书API客户端模块 ============================
+# 全局飞书客户端实例
+feishu_client = None
+
+def init_feishu_client():
+    """初始化飞书客户端"""
+    global feishu_client
+    if feishu_client is None:
+        feishu_client = lark.Client.builder() \
+            .app_id(FEISHU_APP_ID) \
+            .app_secret(FEISHU_APP_SECRET) \
+            .log_level(lark.LogLevel.DEBUG) \
+            .build()
+    return feishu_client
+
+def create_feishu_records(records_data):
+    """批量创建飞书表格记录"""
+    client = init_feishu_client()
+    
+    for retry in range(FEISHU_RETRY_TIMES):
+        try:
+            request: BatchCreateAppTableRecordRequest = BatchCreateAppTableRecordRequest.builder() \
+                .app_token(FEISHU_APP_TOKEN) \
+                .table_id(FEISHU_TABLE_ID) \
+                .request_body(BatchCreateAppTableRecordRequestBody.builder()
+                    .records(records_data)
+                    .build()) \
+                .build()
+    
+            response: BatchCreateAppTableRecordResponse = client.bitable.v1.app_table_record.batch_create(request)
+    
+            if response.success():
+                logger.info(f"飞书记录创建成功")
+                return response.data.records
+            else:
+                logger.warning(f"飞书记录创建失败（第{retry+1}次）: {response.msg}")
+        except Exception as e:
+            logger.warning(f"飞书API调用异常（第{retry+1}次）: {str(e)}")
+        time.sleep(1)
+    
+    logger.error(f"飞书记录创建失败，已重试{FEISHU_RETRY_TIMES}次")
+    return None
+
+def update_feishu_records(records_data):
+    """批量更新飞书表格记录"""
+    client = init_feishu_client()
+    
+    for retry in range(FEISHU_RETRY_TIMES):
+        try:
+            request: BatchUpdateAppTableRecordRequest = BatchUpdateAppTableRecordRequest.builder() \
+                .app_token(FEISHU_APP_TOKEN) \
+                .table_id(FEISHU_TABLE_ID) \
+                .request_body(BatchUpdateAppTableRecordRequestBody.builder()
+                    .records(records_data)
+                    .build()) \
+                .build()
+    
+            response: BatchUpdateAppTableRecordResponse = client.bitable.v1.app_table_record.batch_update(request)
+    
+            if response.success():
+                logger.info(f"飞书记录更新成功")
+                return True
+            else:
+                logger.warning(f"飞书记录更新失败（第{retry+1}次）: {response.msg}")
+        except Exception as e:
+            logger.warning(f"飞书API调用异常（第{retry+1}次）: {str(e)}")
+        time.sleep(1)
+    
+    logger.error(f"飞书记录更新失败，已重试{FEISHU_RETRY_TIMES}次")
+    return False
+
+# ============================ 3.6 本地映射表模块 ============================
+def load_pool_mapping() -> Dict:
+    """加载本地映射表"""
+    return load_json_file(POOL_MAPPING_FILE, {})
+
+def save_pool_mapping(mapping: Dict):
+    """保存本地映射表"""
+    save_json_file(POOL_MAPPING_FILE, mapping)
+
+def get_mapping_record(poolid: str) -> Optional[Dict]:
+    """获取指定poolid的映射记录"""
+    mapping = load_pool_mapping()
+    return mapping.get(poolid)
+
+def update_mapping_record(poolid: str, record_id: str, event_block: int):
+    """更新映射表记录"""
+    mapping = load_pool_mapping()
+    mapping[poolid] = {
+        "record_id": record_id,
+        "event_block": event_block
+    }
+    save_pool_mapping(mapping)
 
 # ============================ 4. 钉钉通知模块 ============================
 def send_dingtalk_notification(title: str, content: str) -> bool:
@@ -551,38 +656,103 @@ def query_pool_events() -> List[Dict]:
     logger.info(f"事件查询完成 | 解析出{len(result)}个唯一事件")
     return result
 
-def update_pool_events_file(events: List[Dict]):
-    """更新事件输出文件（覆盖写入）"""
-    # 加载现有数据
-    existing_data = load_json_file(POOL_EVENTS_FILE, [])
+def process_new_events(events: List[Dict]):
+    """处理新查询到的事件，保存到飞书表格"""
+    if not events:
+        return
     
-    # 按poolId合并（保留最新的）
-    merged = {item["poolid"]: item for item in existing_data}
+    # 加载本地映射表
+    mapping = load_pool_mapping()
+    
+    # 分新增和更新两类处理
+    create_records = []
+    update_records = []
+    
     for event in events:
-        pool_id = event["poolid"]
-        # 基础数据模板
-        merged[pool_id] = {
-            "poolid": pool_id,
-            "hash": event["hash"],
-            "startedTimestamp": event["startedTimeStr"],
+        poolid = event["poolid"]
+        event_block = event["eventBlock"]
+        
+        # 构建飞书记录字段
+        fields = {
+            "poolid": {
+                "text": poolid,
+                "link": f"https://pancakeswap.finance/liquidity/pool/bsc/{poolid}"
+            },
+            "hash": {
+                "text": event["hash"],
+                "link": f"https://bscscan.com/tx/{event['hash']}"
+            },
+            # 转换为毫秒级UTC时间戳
+            "startTimestamp": event["startedTimestamp"] * 1000,
             "currency0_address": "",
             "currency0_symbol": "",
             "currency1_address": "",
             "currency1_symbol": "",
-            "remark": "",
-            "event_time": event["eventTime"],
-            "event_block": event["eventBlock"]
+            "remark": ""
         }
-        # 保留已有的代币信息（如果有）
-        if pool_id in merged and merged[pool_id].get("currency0_address"):
-            merged[pool_id]["currency0_address"] = existing_data[pool_id]["currency0_address"]
-            merged[pool_id]["currency0_symbol"] = existing_data[pool_id]["currency0_symbol"]
-            merged[pool_id]["currency1_address"] = existing_data[pool_id]["currency1_address"]
-            merged[pool_id]["currency1_symbol"] = existing_data[pool_id]["currency1_symbol"]
-            merged[pool_id]["remark"] = existing_data[pool_id]["remark"]
+        
+        # 检查映射表，确定操作类型
+        if poolid in mapping:
+            # 已存在记录，检查block号
+            existing_record = mapping[poolid]
+            if event_block > existing_record["event_block"]:
+                # block号更大，需要更新
+                # 构建更新字段，包含hash和startTimestamp
+                update_fields = {
+                    "hash": {
+                        "text": event["hash"],
+                        "link": f"https://bscscan.com/tx/{event['hash']}"
+                    },
+                    # 转换为毫秒级UTC时间戳
+                    "startTimestamp": event["startedTimestamp"] * 1000,
+                    "currency0_address": "",
+                    "currency0_symbol": "",
+                    "currency1_address": "",
+                    "currency1_symbol": "",
+                    "remark": ""
+                }
+                update_records.append(AppTableRecord.builder()
+                    .fields(update_fields)
+                    .record_id(existing_record["record_id"])
+                    .build())
+        else:
+            # 新记录，需要新增
+            create_records.append(AppTableRecord.builder()
+                .fields(fields)
+                .build())
     
-    # 保存
-    save_json_file(POOL_EVENTS_FILE, list(merged.values()))
+    # 处理新增记录
+    if create_records:
+        logger.info(f"开始创建{len(create_records)}条飞书记录")
+        created_records = create_feishu_records(create_records)
+        if created_records:
+            # 更新映射表
+            for i, created in enumerate(created_records):
+                if i < len(events):
+                    event = events[i]  # 假设顺序一致
+                    update_mapping_record(
+                        event["poolid"],
+                        created.record_id,
+                        event["eventBlock"]
+                    )
+    
+    # 处理更新记录
+    if update_records:
+        logger.info(f"开始更新{len(update_records)}条飞书记录")
+        update_feishu_records(update_records)
+        # 更新映射表中的block号 - 使用事件池直接映射，确保准确性
+        for event in events:
+            poolid = event["poolid"]
+            if poolid in mapping:
+                # 更新映射表中的最新block号
+                update_mapping_record(
+                    poolid,
+                    mapping[poolid]["record_id"],
+                    event["eventBlock"]
+                )
+    
+    # 更新待查询池子列表
+    update_pending_pools(events)
 
 def update_pending_pools(events: List[Dict]):
     """更新待查询池子列表"""
@@ -663,35 +833,42 @@ def process_single_pool(pool: Dict) -> Optional[Dict]:
     currency0_symbol = get_token_symbol(currency0_addr)
     currency1_symbol = get_token_symbol(currency1_addr)
     
-    # 加载事件文件，更新代币信息
-    pool_events = load_json_file(POOL_EVENTS_FILE, [])
-    updated = False
-    for item in pool_events:
-        if item["poolid"] == pool_id:
-            item["currency0_address"] = currency0_addr
-            item["currency0_symbol"] = currency0_symbol
-            item["currency1_address"] = currency1_addr
-            item["currency1_symbol"] = currency1_symbol
-            item["remark"] = ""
-            updated = True
-            # 发送池子通知
-            send_pool_info_notification(
-                pool_id=pool_id,
-                currency0_symbol=currency0_symbol,
-                currency1_symbol=currency1_symbol,
-                started_time=item["startedTimestamp"],
-                currency0_address=currency0_addr,
-                currency1_address=currency1_addr,
-                tx_hash=item["hash"]
-            )
-            break
+    # 从映射表获取飞书record_id
+    mapping_record = get_mapping_record(pool_id)
+    if not mapping_record:
+        logger.error(f"池子 {pool_id} 未在映射表中找到对应记录")
+        return None
     
-    if updated:
-        save_json_file(POOL_EVENTS_FILE, pool_events)
+    # 构建更新字段
+    update_fields = {
+        "currency0_address": currency0_addr,
+        "currency0_symbol": currency0_symbol,
+        "currency1_address": currency1_addr,
+        "currency1_symbol": currency1_symbol,
+        "remark": ""
+    }
+    
+    # 调用飞书API更新记录
+    update_records = [AppTableRecord.builder()
+        .fields(update_fields)
+        .record_id(mapping_record["record_id"])
+        .build()]
+    
+    if update_feishu_records(update_records):
         logger.info(f"池子 {pool_id} 信息更新完成")
+        # 发送池子通知
+        send_pool_info_notification(
+            pool_id=pool_id,
+            currency0_symbol=currency0_symbol,
+            currency1_symbol=currency1_symbol,
+            started_time=format_beijing_time(started_time),
+            currency0_address=currency0_addr,
+            currency1_address=currency1_addr,
+            tx_hash=""
+        )
         return pool
     else:
-        logger.error(f"池子 {pool_id} 未在事件文件中找到对应记录")
+        logger.error(f"池子 {pool_id} 信息更新失败")
         return None
 
 def check_pool_query_time(pool: Dict) -> bool:
@@ -717,14 +894,19 @@ def check_pool_query_time(pool: Dict) -> bool:
             logger.info(f"池子 {pool['poolid']} 已过开盘时间，执行首次查询")
             return True
         else:
-            # 备注并移出
+            # 更新飞书记录的remark
+            pool_id = pool["poolid"]
+            mapping_record = get_mapping_record(pool_id)
+            if mapping_record:
+                update_fields = {
+                    "remark": "已过PoolStartedAtUpdated事件设定的开盘时间，不再发起池子信息查询"
+                }
+                update_records = [AppTableRecord.builder()
+                    .fields(update_fields)
+                    .record_id(mapping_record["record_id"])
+                    .build()]
+                update_feishu_records(update_records)
             logger.info(f"池子 {pool['poolid']} 已过开盘时间，不再查询")
-            pool_events = load_json_file(POOL_EVENTS_FILE, [])
-            for item in pool_events:
-                if item["poolid"] == pool["poolid"]:
-                    item["remark"] = "已过PoolStartedAtUpdated事件设定的开盘时间，不再发起池子信息查询"
-                    break
-            save_json_file(POOL_EVENTS_FILE, pool_events)
             return False
     
     # 开盘前2小时前：整点查询
@@ -769,6 +951,18 @@ def run_pool_query():
         # 检查是否已过开盘时间（需要移出）
         started_time = get_beijing_time(pool["startedTimestamp"])
         if current_ts > int(started_time.timestamp()) and pool["last_query_time"] > 0:
+            # 更新飞书记录的remark
+            pool_id = pool["poolid"]
+            mapping_record = get_mapping_record(pool_id)
+            if mapping_record:
+                update_fields = {
+                    "remark": "已过PoolStartedAtUpdated事件设定的开盘时间，不再发起池子信息查询"
+                }
+                update_records = [AppTableRecord.builder()
+                    .fields(update_fields)
+                    .record_id(mapping_record["record_id"])
+                    .build()]
+                update_feishu_records(update_records)
             logger.info(f"池子 {pool['poolid']} 已过开盘时间且查询过，移出待查询列表")
             continue
         
@@ -787,20 +981,23 @@ def main():
     # 程序启动时发送钉钉通知
     send_dingtalk_notification("PoolStartedAtUpdated新事件监控重启", "PoolStartedAtUpdated新事件监控重启")
    
-    # ========== 三个核心文件不存在时自动新建 ==========
+    # ========== 核心文件初始化 ==========
     # 1. 初始化 processed_block.json（已在load_processed_block中处理，此处仅确保文件存在）
     if not os.path.exists(PROCESSED_BLOCK_FILE):
-        load_processed_block()  # 调用上述修改后的函数，自动初始化文件
+        load_processed_block()  # 自动初始化文件
     
-    # 2. 初始化 pool_events.json（不存在则新建空数组）
-    if not os.path.exists(POOL_EVENTS_FILE):
-        logger.info(f"{POOL_EVENTS_FILE} 文件不存在，自动新建空文件")
-        save_json_file(POOL_EVENTS_FILE, [])
+    # 2. 初始化 pool_mapping.json（不存在则新建空文件）
+    if not os.path.exists(POOL_MAPPING_FILE):
+        logger.info(f"{POOL_MAPPING_FILE} 文件不存在，自动新建空文件")
+        save_json_file(POOL_MAPPING_FILE, {})
     
     # 3. 初始化 pending_pools.json（不存在则新建空数组）
     if not os.path.exists(PENDING_POOLS_FILE):
         logger.info(f"{PENDING_POOLS_FILE} 文件不存在，自动新建空文件")
         save_json_file(PENDING_POOLS_FILE, [])
+    
+    # 4. 初始化飞书客户端
+    init_feishu_client()
     # ========== 初始化结束 ==========
 
     # ========== 新增：初次启动时立即执行一次事件查询 ==========
@@ -814,10 +1011,9 @@ def main():
                 pool_id=event["poolid"],
                 started_time=event["startedTimeStr"]
             )
-        # 更新文件
-        update_pool_events_file(events)
+        # 更新飞书表格
+        process_new_events(events)
         update_pending_pools(events)
-
     # 2. 初次启动立即执行池子查询（核心新增）
     logger.info("=== 程序初次启动，立即执行一次池子查询 ===")
     run_pool_query()
@@ -846,8 +1042,8 @@ def main():
                             pool_id=event["poolid"],
                             started_time=event["startedTimeStr"]
                         )
-                    # 更新文件
-                    update_pool_events_file(events)
+                    # 更新飞书表格
+                    process_new_events(events)
                     update_pending_pools(events)
                 event_query_triggered = True
             elif current_minute not in [0, 30]:
