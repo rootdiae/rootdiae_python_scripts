@@ -35,9 +35,11 @@ pip install lark-oapi -U
 ### 1. RPC配置
 
 ```python
-# 2.1 RPC配置（多节点轮询，无认证，需要配置支持大区块范围查询eth_getLogs的节点）
+# 2.1 RPC配置（多节点轮询，公共节点无需认证，需要配置支持大区块范围查询eth_getLogs的节点）
 RPC_ENDPOINTS = [
-    "https://bsc.drpc.org",
+    "https://bsc-mainnet.nodereal.io/v1/f8728a3265504b998a2f09c83493d76a",  # nodereal示例代码里的url
+    "https://bsc-mainnet.nodereal.io/v1/xxx",  # 自己注册的账号的api key
+    "https://bsc.drpc.org",  # 公共节点
     "https://bsc-rpc.publicnode.com",
     "https://wallet.okex.org/fullnode/bsc/discover/rpc"
 ]
@@ -127,6 +129,7 @@ python monitor.py
 
 1. **RPC请求失败**：
    - 自动切换到下一个RPC节点（轮询机制）
+   - 自动分页查询，每次查询`BLOCK_RANGE_LIMIT`个区块
    - 最多重试`RPC_RETRY_TIMES`次
    - 重试失败后记录错误日志
 
@@ -205,9 +208,10 @@ monitor2.py
 
 1. **配置安全**：请妥善保管您的钉钉Webhook、飞书AppID/Secret等敏感信息，避免泄露
 2. **RPC节点**：建议使用多个可靠的RPC节点，提高程序可用性
-3. **性能考量**：程序会定期发起RPC请求，请确保服务器网络稳定
-4. **飞书表格权限**：确保飞书应用有足够的权限操作表格
-5. **钉钉机器人设置**：请确保钉钉机器人已正确配置，并且Webhook有效
+3. **自动分页查询**：程序会自动分页查询事件，每次查询`BLOCK_RANGE_LIMIT`个区块，避免一次查询区块范围过大会导致超时或返回空结果
+4. **性能考量**：程序会定期发起RPC请求，请确保服务器网络稳定
+5. **飞书表格权限**：确保飞书应用有足够的权限操作表格
+6. **钉钉机器人设置**：请确保钉钉机器人已正确配置，并且Webhook有效
 
 ## 故障排查
 

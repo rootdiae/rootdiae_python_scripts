@@ -10,8 +10,8 @@ from web3 import Web3
 from web3.exceptions import ContractLogicError, BadFunctionCallOutput
 from zoneinfo import ZoneInfo
 
-# 飞书SDK导入
-import lark_oapi as lark
+# 飞书SDK导入，安装指令：pip install lark-oapi -U
+import lark_oapi as lark 
 from lark_oapi.api.bitable.v1 import *
 
 # ============================ 1. 日志配置 (核心要求：控制台+文件输出，轮转) ============================
@@ -50,9 +50,10 @@ def setup_logger() -> logging.Logger:
 logger = setup_logger()
 
 # ============================ 2. 核心配置常量 (需用户替换钉钉Webhook) ============================
-# 2.1 RPC配置（多节点轮询，无认证）
+# 2.1 RPC配置（多节点轮询）
 RPC_ENDPOINTS = [
-    "https://bsc.drpc.org",
+    "https://bsc-mainnet.nodereal.io/v1/f8728a3265504b998a2f09c83493d76a",  # nodereal示例代码里的url
+    "https://bsc.drpc.org",  # 公共节点
     "https://bsc-rpc.publicnode.com",
     "https://wallet.okex.org/fullnode/bsc/discover/rpc"
 ]
@@ -499,8 +500,7 @@ def send_pool_info_notification(
     currency1_symbol: str,
     started_time: str,
     currency0_address: str,
-    currency1_address: str,
-    tx_hash: str
+    currency1_address: str
 ):
     """发送池子信息的钉钉通知"""
     title = f"{currency0_symbol}/{currency1_symbol}新池子{started_time.split('(')[0]}开始交易"
@@ -509,7 +509,6 @@ def send_pool_info_notification(
 - 代币0：[{currency0_symbol}](https://bscscan.com/address/{currency0_address})
 - 代币1：[{currency1_symbol}](https://bscscan.com/address/{currency1_address})
 - 开始交易时间：{started_time}
-- 交易哈希：[点击查看](https://bscscan.com/tx/{tx_hash})
 """
     send_dingtalk_notification(title, content)
 
@@ -618,27 +617,43 @@ def query_pool_events() -> List[Dict]:
     
     logger.info(f"开始查询事件 | from_block: {from_block} | to_block: {to_block}")
     
-    # 2. 构建eth_getLogs参数
-    params = [
-        {
-            "address": EVENT_ADDRESS,
-            "topics": [EVENT_TOPIC0],
-            "fromBlock": hex(from_block),
-            "toBlock": hex(to_block)
-        }
-    ]
+    # 2. 计算区块范围，如需分页处理
+    BLOCK_RANGE_LIMIT = 50000
+    all_logs = []
+    current_from = from_block
     
-    # 3. 调用RPC
-    logs = rpc_request("eth_getLogs", params)
-    if not logs:
+    # 分页查询
+    while current_from < to_block:
+        current_to = min(current_from + BLOCK_RANGE_LIMIT -1, to_block)
+        logger.info(f"分页查询事件 | from_block: {current_from} | to_block: {current_to}")
+        
+        # 构建eth_getLogs参数
+        params = [
+            {
+                "address": EVENT_ADDRESS,
+                "topics": [EVENT_TOPIC0],
+                "fromBlock": hex(current_from),
+                "toBlock": hex(current_to)
+            }
+        ]
+        
+        # 调用RPC
+        logs = rpc_request("eth_getLogs", params)
+        if logs:
+            all_logs.extend(logs)
+        
+        # 移动到下一页
+        current_from = current_to + 1
+    
+    if not all_logs:
         logger.error("eth_getLogs返回空")
         # 即使返回空，也要更新已处理区块
         save_processed_block(to_block)        
         return []
     
-    # 4. 解析日志并去重（同一poolId保留区块号最大的）
+    # 3. 解析日志并去重（同一poolId保留区块号最大的）
     parsed_events = {}
-    for log in logs:
+    for log in all_logs:
         event = parse_pool_event(log)
         if not event:
             continue
@@ -648,13 +663,14 @@ def query_pool_events() -> List[Dict]:
         if pool_id not in parsed_events or event["eventBlock"] > parsed_events[pool_id]["eventBlock"]:
             parsed_events[pool_id] = event
     
-    # 5. 更新已处理区块
+    # 4. 更新已处理区块
     save_processed_block(to_block)
     
-    # 6. 转换为列表返回
+    # 5. 转换为列表返回
     result = list(parsed_events.values())
     logger.info(f"事件查询完成 | 解析出{len(result)}个唯一事件")
     return result
+
 
 def process_new_events(events: List[Dict]):
     """处理新查询到的事件，保存到飞书表格"""
@@ -683,12 +699,7 @@ def process_new_events(events: List[Dict]):
                 "link": f"https://bscscan.com/tx/{event['hash']}"
             },
             # 转换为毫秒级UTC时间戳
-            "startTimestamp": event["startedTimestamp"] * 1000,
-            "currency0_address": "",
-            "currency0_symbol": "",
-            "currency1_address": "",
-            "currency1_symbol": "",
-            "remark": ""
+            "startTimestamp": event["startedTimestamp"] * 1000
         }
         
         # 检查映射表，确定操作类型
@@ -704,12 +715,7 @@ def process_new_events(events: List[Dict]):
                         "link": f"https://bscscan.com/tx/{event['hash']}"
                     },
                     # 转换为毫秒级UTC时间戳
-                    "startTimestamp": event["startedTimestamp"] * 1000,
-                    "currency0_address": "",
-                    "currency0_symbol": "",
-                    "currency1_address": "",
-                    "currency1_symbol": "",
-                    "remark": ""
+                    "startTimestamp": event["startedTimestamp"] * 1000
                 }
                 update_records.append(AppTableRecord.builder()
                     .fields(update_fields)
@@ -844,8 +850,7 @@ def process_single_pool(pool: Dict) -> Optional[Dict]:
         "currency0_address": currency0_addr,
         "currency0_symbol": currency0_symbol,
         "currency1_address": currency1_addr,
-        "currency1_symbol": currency1_symbol,
-        "remark": ""
+        "currency1_symbol": currency1_symbol
     }
     
     # 调用飞书API更新记录
@@ -863,8 +868,7 @@ def process_single_pool(pool: Dict) -> Optional[Dict]:
             currency1_symbol=currency1_symbol,
             started_time=format_beijing_time(started_time),
             currency0_address=currency0_addr,
-            currency1_address=currency1_addr,
-            tx_hash=""
+            currency1_address=currency1_addr
         )
         return pool
     else:
